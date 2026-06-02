@@ -1,16 +1,3 @@
-// src/lib/constants.ts
-// ─────────────────────────────────────────────────────────────────────────────
-// PURPOSE: Central source of truth for all application-wide constant values.
-//
-// WHY THIS FILE EXISTS:
-// Without this file, values like "Super Admin" and "Active" would be typed
-// as raw strings in dozens of places. One typo like "super admin" instead of
-// "Super Admin" would silently break role checks and cause hard-to-find bugs.
-// With this file, every part of the app imports from one place. Changing a
-// value here changes it everywhere simultaneously.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─── Application Identity ────────────────────────────────────────────────────
 
 export const APP_NAME = "Prepaid Wallet POS";
 export const APP_VERSION = "1.0.0";
