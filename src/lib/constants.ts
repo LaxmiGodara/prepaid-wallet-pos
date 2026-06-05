@@ -1,11 +1,5 @@
-
 export const APP_NAME = "Prepaid Wallet POS";
 export const APP_VERSION = "1.0.0";
-
-// ─── Staff Roles ─────────────────────────────────────────────────────────────
-// These are the three roles that exist in the system.
-// "as const" locks the values so TypeScript treats them as exact strings,
-// not just any string. This prevents accidental role name mismatches.
 
 export const STAFF_ROLES = {
   SUPER_ADMIN: "Super Admin",
@@ -13,14 +7,7 @@ export const STAFF_ROLES = {
   CASHIER: "Cashier",
 } as const;
 
-// StaffRole is a type derived from the STAFF_ROLES object.
-// It can only be one of the three exact strings defined above.
-// Usage: let userRole: StaffRole = "Admin";
 export type StaffRole = (typeof STAFF_ROLES)[keyof typeof STAFF_ROLES];
-
-// ─── Record Status ───────────────────────────────────────────────────────────
-// Every record in the system (staff, member, card, wallet, product) uses
-// Active or Inactive status. Defined here so the values are consistent.
 
 export const RECORD_STATUS = {
   ACTIVE: "Active",
@@ -29,8 +16,14 @@ export const RECORD_STATUS = {
 
 export type RecordStatus = (typeof RECORD_STATUS)[keyof typeof RECORD_STATUS];
 
-// ─── Payment Modes ───────────────────────────────────────────────────────────
-// Used in recharge and debit records to track how money was collected or paid.
+export const CARD_STATUS = {
+  ACTIVE: "Active",
+  INACTIVE: "Inactive",
+  REPLACED: "Replaced",
+  EXPIRED: "Expired",
+} as const;
+
+export type CardStatus = (typeof CARD_STATUS)[keyof typeof CARD_STATUS];
 
 export const PAYMENT_MODES = {
   CASH: "Cash",
@@ -40,10 +33,8 @@ export const PAYMENT_MODES = {
   OTHER: "Other",
 } as const;
 
-export type PaymentMode = (typeof PAYMENT_MODES)[keyof typeof PAYMENT_MODES];
-
-// ─── Transaction Types ───────────────────────────────────────────────────────
-// Wallet transactions are either Credit (money added) or Debit (money removed).
+export type PaymentMode =
+  (typeof PAYMENT_MODES)[keyof typeof PAYMENT_MODES];
 
 export const TRANSACTION_TYPES = {
   CREDIT: "Credit",
@@ -52,9 +43,6 @@ export const TRANSACTION_TYPES = {
 
 export type TransactionType =
   (typeof TRANSACTION_TYPES)[keyof typeof TRANSACTION_TYPES];
-
-// ─── Stock Movement Types ────────────────────────────────────────────────────
-// Every stock change has a reason. This tracks why stock changed.
 
 export const STOCK_MOVEMENT_TYPES = {
   OPENING: "Opening",
@@ -65,9 +53,6 @@ export const STOCK_MOVEMENT_TYPES = {
 
 export type StockMovementType =
   (typeof STOCK_MOVEMENT_TYPES)[keyof typeof STOCK_MOVEMENT_TYPES];
-
-// ─── Product Units ───────────────────────────────────────────────────────────
-// How a product is measured and sold.
 
 export const PRODUCT_UNITS = {
   PIECE: "Piece",
@@ -81,10 +66,8 @@ export const PRODUCT_UNITS = {
   DOZEN: "Dozen",
 } as const;
 
-export type ProductUnit = (typeof PRODUCT_UNITS)[keyof typeof PRODUCT_UNITS];
-
-// ─── Bill Status ─────────────────────────────────────────────────────────────
-// A bill is either confirmed (completed) or voided (cancelled after creation).
+export type ProductUnit =
+  (typeof PRODUCT_UNITS)[keyof typeof PRODUCT_UNITS];
 
 export const BILL_STATUS = {
   CONFIRMED: "Confirmed",
@@ -92,8 +75,6 @@ export const BILL_STATUS = {
 } as const;
 
 export type BillStatus = (typeof BILL_STATUS)[keyof typeof BILL_STATUS];
-
-// ─── Pagination Defaults ─────────────────────────────────────────────────────
 
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
