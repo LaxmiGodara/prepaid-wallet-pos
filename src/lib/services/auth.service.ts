@@ -1,8 +1,14 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-import { STAFF_ROLES } from "@/lib/constants";
-import { Staff } from "@/lib/models";
-import { AppError, type FieldError } from "@/types";
+import { RECORD_STATUS, STAFF_ROLES } from "../constants";
+import { Staff } from "../models";
+import {
+  AppError,
+  type FieldError,
+  type JwtPayload,
+  type SessionData,
+} from "@/types";
 
 interface SetupInput {
   fullName?: string;
@@ -21,16 +27,21 @@ interface SafeStaff {
 interface SetupStatus {
   isSetupComplete: boolean;
 }
+
+interface LoginInput {
+  username?: string;
+  password?: string;
+}
+
 export async function getSetupStatus(): Promise<SetupStatus> {
   const count = await Staff.countDocuments({ isDeleted: false });
   return { isSetupComplete: count > 0 };
 }
+
 function validateSetupInput(input: SetupInput): FieldError[] {
   const errors: FieldError[] = [];
 
-  // ── fullName ──────────────────────────────────────────────────────────────
   const fullName = input.fullName?.trim() ?? "";
-
   if (!fullName) {
     errors.push({ field: "fullName", message: "Full name is required." });
   } else if (fullName.length < 2) {
@@ -44,8 +55,9 @@ function validateSetupInput(input: SetupInput): FieldError[] {
       message: "Full name must not exceed 120 characters.",
     });
   }
- const username = input.username?.trim().toLowerCase() ?? "";
-   if (!username) {
+
+  const username = input.username?.trim().toLowerCase() ?? "";
+  if (!username) {
     errors.push({ field: "username", message: "Username is required." });
   } else if (username.length < 3) {
     errors.push({
@@ -57,12 +69,7 @@ function validateSetupInput(input: SetupInput): FieldError[] {
       field: "username",
       message: "Username must not exceed 40 characters.",
     });
-      } else if (!/^[a-z0-9_]+$/.test(username)) {
-    // Regex explanation:
-    // ^ = start of string
-    // [a-z0-9_]+ = one or more lowercase letters, digits, or underscores
-    // $ = end of string
-    // This prevents spaces, special characters, and uppercase letters
+  } else if (!/^[a-z0-9_]+$/.test(username)) {
     errors.push({
       field: "username",
       message:
@@ -70,8 +77,7 @@ function validateSetupInput(input: SetupInput): FieldError[] {
     });
   }
 
-    const password = input.password ?? "";
-
+  const password = input.password ?? "";
   if (!password) {
     errors.push({ field: "password", message: "Password is required." });
   } else if (password.length < 8) {
@@ -81,16 +87,13 @@ function validateSetupInput(input: SetupInput): FieldError[] {
     });
   }
 
-    const confirmPassword = input.confirmPassword ?? "";
-
+  const confirmPassword = input.confirmPassword ?? "";
   if (!confirmPassword) {
     errors.push({
       field: "confirmPassword",
       message: "Please confirm your password.",
     });
   } else if (password && password !== confirmPassword) {
-    // Only check mismatch if password itself is present
-    // (avoids duplicate errors when password is also missing)
     errors.push({
       field: "confirmPassword",
       message: "Passwords do not match.",
@@ -100,26 +103,23 @@ function validateSetupInput(input: SetupInput): FieldError[] {
   return errors;
 }
 
-export async function createSuperAdmin(
-  input: SetupInput
-): Promise<SafeStaff> {
-  // ── Step 1: Field Validation ──────────────────────────────────────────────
+export async function createSuperAdmin(input: SetupInput): Promise<SafeStaff> {
   const validationErrors = validateSetupInput(input);
 
   if (validationErrors.length > 0) {
-    // AppError with errors array - handleApiError will format each field error
     throw new AppError(
       "Validation failed. Please check the highlighted fields.",
       400,
-      validationErrors
+      validationErrors,
     );
   }
+
   const { isSetupComplete } = await getSetupStatus();
 
   if (isSetupComplete) {
     throw new AppError(
       "Setup has already been completed. Please log in with your existing account.",
-      409 // 409 Conflict - the resource already exists
+      409,
     );
   }
 
@@ -127,7 +127,7 @@ export async function createSuperAdmin(
   const username = input.username!.trim().toLowerCase();
   const password = input.password!;
 
-    const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
 
   const staff = await Staff.create({
     fullName,
@@ -141,10 +141,85 @@ export async function createSuperAdmin(
     isDeleted: false,
     deletedAt: null,
   });
+
   return {
     id: staff._id.toString(),
     fullName: staff.fullName,
     username: staff.username,
     role: staff.role,
+  };
+}
+
+export async function loginStaff(input: LoginInput): Promise<SessionData> {
+  const errors: FieldError[] = [];
+
+  if (!input.username?.trim()) {
+    errors.push({
+      field: "username",
+      message: "Username is required.",
+    });
+  }
+
+  if (!input.password) {
+    errors.push({
+      field: "password",
+      message: "Password is required.",
+    });
+  }
+
+  if (errors.length > 0) {
+    throw new AppError("Please fill in all required fields.", 400, errors);
+  }
+
+  const username = input.username!.trim().toLowerCase();
+
+  const staff = await Staff.findOne({
+    username,
+    isDeleted: false,
+  }).select("+passwordHash");
+
+  if (!staff) {
+    throw new AppError("Invalid username or password.", 401);
+  }
+
+  if (staff.status !== RECORD_STATUS.ACTIVE) {
+    throw new AppError(
+      "Your account has been deactivated. Please contact your administrator.",
+      403,
+    );
+  }
+
+  const isPasswordValid = await bcrypt.compare(
+    input.password!,
+    staff.passwordHash,
+  );
+
+  if (!isPasswordValid) {
+    throw new AppError("Invalid username or password.", 401);
+  }
+
+  const payload: JwtPayload = {
+    staffId: staff._id.toString(),
+    role: staff.role,
+    username: staff.username,
+    tokenVersion: staff.tokenVersion,
+  };
+
+  const jwtSecret: string = process.env.JWT_SECRET!;
+  const jwtExpiresIn = (process.env.JWT_EXPIRES_IN ||
+    "8h") as jwt.SignOptions["expiresIn"];
+
+  const token = jwt.sign(payload, jwtSecret, {
+    expiresIn: jwtExpiresIn,
+  });
+  return {
+    token,
+    staff: {
+      id: staff._id.toString(),
+      fullName: staff.fullName,
+      username: staff.username,
+      role: staff.role,
+      status: staff.status,
+    },
   };
 }
