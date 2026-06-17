@@ -1,14 +1,11 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 
-import { RECORD_STATUS, STAFF_ROLES } from "../constants";
-import { Staff } from "../models";
-import {
-  AppError,
-  type FieldError,
-  type JwtPayload,
-  type SessionData,
-} from "@/types";
+import bcrypt from "bcryptjs";
+import jwt, { SignOptions } from "jsonwebtoken";
+
+import { RECORD_STATUS, STAFF_ROLES } from "@/lib/constants";
+import { Staff } from "@/lib/models";
+import { AppError, type FieldError, type JwtPayload, type SessionData } from "@/types";
+
 
 interface SetupInput {
   fullName?: string;
@@ -33,10 +30,24 @@ interface LoginInput {
   password?: string;
 }
 
+// What getCurrentStaff returns - includes status, unlike SafeStaff,
+// because the frontend needs to know if the account is still Active.
+interface StaffProfile {
+  id: string;
+  fullName: string;
+  username: string;
+  role: string;
+  status: string;
+}
+
+
+
 export async function getSetupStatus(): Promise<SetupStatus> {
   const count = await Staff.countDocuments({ isDeleted: false });
   return { isSetupComplete: count > 0 };
 }
+
+
 
 function validateSetupInput(input: SetupInput): FieldError[] {
   const errors: FieldError[] = [];
@@ -45,35 +56,22 @@ function validateSetupInput(input: SetupInput): FieldError[] {
   if (!fullName) {
     errors.push({ field: "fullName", message: "Full name is required." });
   } else if (fullName.length < 2) {
-    errors.push({
-      field: "fullName",
-      message: "Full name must be at least 2 characters.",
-    });
+    errors.push({ field: "fullName", message: "Full name must be at least 2 characters." });
   } else if (fullName.length > 120) {
-    errors.push({
-      field: "fullName",
-      message: "Full name must not exceed 120 characters.",
-    });
+    errors.push({ field: "fullName", message: "Full name must not exceed 120 characters." });
   }
 
   const username = input.username?.trim().toLowerCase() ?? "";
   if (!username) {
     errors.push({ field: "username", message: "Username is required." });
   } else if (username.length < 3) {
-    errors.push({
-      field: "username",
-      message: "Username must be at least 3 characters.",
-    });
+    errors.push({ field: "username", message: "Username must be at least 3 characters." });
   } else if (username.length > 40) {
-    errors.push({
-      field: "username",
-      message: "Username must not exceed 40 characters.",
-    });
+    errors.push({ field: "username", message: "Username must not exceed 40 characters." });
   } else if (!/^[a-z0-9_]+$/.test(username)) {
     errors.push({
       field: "username",
-      message:
-        "Username can only contain lowercase letters, numbers, and underscores.",
+      message: "Username can only contain lowercase letters, numbers, and underscores.",
     });
   }
 
@@ -81,45 +79,36 @@ function validateSetupInput(input: SetupInput): FieldError[] {
   if (!password) {
     errors.push({ field: "password", message: "Password is required." });
   } else if (password.length < 8) {
-    errors.push({
-      field: "password",
-      message: "Password must be at least 8 characters.",
-    });
+    errors.push({ field: "password", message: "Password must be at least 8 characters." });
   }
 
   const confirmPassword = input.confirmPassword ?? "";
   if (!confirmPassword) {
-    errors.push({
-      field: "confirmPassword",
-      message: "Please confirm your password.",
-    });
+    errors.push({ field: "confirmPassword", message: "Please confirm your password." });
   } else if (password && password !== confirmPassword) {
-    errors.push({
-      field: "confirmPassword",
-      message: "Passwords do not match.",
-    });
+    errors.push({ field: "confirmPassword", message: "Passwords do not match." });
   }
 
   return errors;
 }
 
+
+
 export async function createSuperAdmin(input: SetupInput): Promise<SafeStaff> {
   const validationErrors = validateSetupInput(input);
-
   if (validationErrors.length > 0) {
     throw new AppError(
       "Validation failed. Please check the highlighted fields.",
       400,
-      validationErrors,
+      validationErrors
     );
   }
 
   const { isSetupComplete } = await getSetupStatus();
-
   if (isSetupComplete) {
     throw new AppError(
       "Setup has already been completed. Please log in with your existing account.",
-      409,
+      409
     );
   }
 
@@ -150,21 +139,16 @@ export async function createSuperAdmin(input: SetupInput): Promise<SafeStaff> {
   };
 }
 
+
+
 export async function loginStaff(input: LoginInput): Promise<SessionData> {
   const errors: FieldError[] = [];
 
   if (!input.username?.trim()) {
-    errors.push({
-      field: "username",
-      message: "Username is required.",
-    });
+    errors.push({ field: "username", message: "Username is required." });
   }
-
   if (!input.password) {
-    errors.push({
-      field: "password",
-      message: "Password is required.",
-    });
+    errors.push({ field: "password", message: "Password is required." });
   }
 
   if (errors.length > 0) {
@@ -173,10 +157,9 @@ export async function loginStaff(input: LoginInput): Promise<SessionData> {
 
   const username = input.username!.trim().toLowerCase();
 
-  const staff = await Staff.findOne({
-    username,
-    isDeleted: false,
-  }).select("+passwordHash");
+  const staff = await Staff.findOne({ username, isDeleted: false }).select(
+    "+passwordHash"
+  );
 
   if (!staff) {
     throw new AppError("Invalid username or password.", 401);
@@ -185,13 +168,13 @@ export async function loginStaff(input: LoginInput): Promise<SessionData> {
   if (staff.status !== RECORD_STATUS.ACTIVE) {
     throw new AppError(
       "Your account has been deactivated. Please contact your administrator.",
-      403,
+      403
     );
   }
 
   const isPasswordValid = await bcrypt.compare(
     input.password!,
-    staff.passwordHash,
+    staff.passwordHash
   );
 
   if (!isPasswordValid) {
@@ -205,13 +188,18 @@ export async function loginStaff(input: LoginInput): Promise<SessionData> {
     tokenVersion: staff.tokenVersion,
   };
 
-  const jwtSecret: string = process.env.JWT_SECRET!;
-  const jwtExpiresIn = (process.env.JWT_EXPIRES_IN ||
-    "8h") as jwt.SignOptions["expiresIn"];
+ const jwtSecret = process.env.JWT_SECRET!;
+
+const jwtExpiresIn = (process.env.JWT_EXPIRES_IN ??
+  "8h") as SignOptions["expiresIn"];
+
 
   const token = jwt.sign(payload, jwtSecret, {
-    expiresIn: jwtExpiresIn,
-  });
+  expiresIn: jwtExpiresIn,
+});
+
+  
+
   return {
     token,
     staff: {
@@ -221,5 +209,35 @@ export async function loginStaff(input: LoginInput): Promise<SessionData> {
       role: staff.role,
       status: staff.status,
     },
+  };
+}
+
+
+export async function logoutStaff(staffId: string): Promise<void> {
+  await Staff.updateOne(
+    { _id: staffId, isDeleted: false },
+    // $inc is atomic - MongoDB increments the existing value as one
+    // uninterruptible operation. No read-then-write race condition possible.
+    { $inc: { tokenVersion: 1 } }
+  );
+}
+
+
+export async function getCurrentStaff(staffId: string): Promise<StaffProfile> {
+  const staff = await Staff.findOne({ _id: staffId, isDeleted: false });
+
+  if (!staff) {
+    // Extremely unlikely since requireAuth just confirmed this,
+    // but defensive coding accounts for the staff being deleted
+    // in the split second between requireAuth and this query.
+    throw new AppError("Staff account not found.", 404);
+  }
+
+  return {
+    id: staff._id.toString(),
+    fullName: staff.fullName,
+    username: staff.username,
+    role: staff.role,
+    status: staff.status,
   };
 }
