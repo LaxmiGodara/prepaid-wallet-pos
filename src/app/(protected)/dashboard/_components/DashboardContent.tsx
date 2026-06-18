@@ -1,13 +1,16 @@
 
+
 "use client";
+
+import { useRouter } from "next/navigation";
 
 import { Badge, Button, PageHeader, SectionCard, getRoleVariant } from "@/components/ui";
 import { useSession } from "@/contexts/SessionContext";
 import { APP_NAME, STAFF_ROLES } from "@/lib/constants";
 
 export default function DashboardContent() {
-
   const { session, logout, hasRole } = useSession();
+  const router = useRouter();
 
   return (
     <div className="max-w-4xl mx-auto p-8 flex flex-col gap-6">
@@ -16,9 +19,22 @@ export default function DashboardContent() {
         title="Dashboard"
         subtitle={APP_NAME}
         actions={
-          <Button variant="secondary" size="sm" onClick={() => void logout()}>
-            Logout
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push("/account")}
+            >
+              My Account
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void logout()}
+            >
+              Logout
+            </Button>
+          </>
         }
       />
 
@@ -42,17 +58,6 @@ export default function DashboardContent() {
         </div>
       </SectionCard>
 
-      {/*
-        CONDITIONAL RENDERING BY ROLE.
-        This panel only renders its JSX at all for Admin or Super Admin.
-        A Cashier would not even see this section exist in the page.
-
-        IMPORTANT: this is a UX convenience only. The real security
-        boundary is requireRole() on the backend (see admin-check/route.ts).
-        Even if a Cashier somehow forced this panel to render via DevTools,
-        clicking its button would still hit a backend route protected by
-        requireRole() and receive a 403.
-      */}
       {hasRole([STAFF_ROLES.SUPER_ADMIN, STAFF_ROLES.ADMIN]) && (
         <SectionCard title="Admin Tools">
           <p className="text-sm text-slate-500 mb-4">
@@ -65,12 +70,11 @@ export default function DashboardContent() {
         </SectionCard>
       )}
 
-      <SectionCard title="Day 9 Verification">
+      <SectionCard title="Day 10 Verification">
         <ul className="text-sm text-slate-600 flex flex-col gap-2">
-          <li>Session verified ONCE at the layout level, not per-page</li>
-          <li> useSession() provides data with zero re-verification</li>
-          <li> hasRole() controls the Admin Tools panel above</li>
-          <li> requireRole() on the backend is the real enforcement boundary</li>
+          <li> Profile updates sync instantly via updateSession()</li>
+          <li> Password changes rotate the token via replaceSession()</li>
+          <li> Current password required before any password change</li>
         </ul>
       </SectionCard>
 
