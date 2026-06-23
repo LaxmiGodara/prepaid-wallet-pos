@@ -1,6 +1,4 @@
-
-
-
+import DashboardShell from "@/components/layout/DashboardShell";
 import { SessionProvider } from "@/contexts/SessionContext";
 
 interface ProtectedLayoutProps {
@@ -9,8 +7,8 @@ interface ProtectedLayoutProps {
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <SessionProvider>{children}</SessionProvider>
-    </div>
+    <SessionProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </SessionProvider>
   );
 }

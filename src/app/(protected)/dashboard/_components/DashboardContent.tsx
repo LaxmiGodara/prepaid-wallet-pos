@@ -1,46 +1,31 @@
-
-
 "use client";
 
-import { useRouter } from "next/navigation";
-
-import { Badge, Button, PageHeader, SectionCard, getRoleVariant } from "@/components/ui";
+import Link from "next/link";
+import { Badge, SectionCard, getRoleVariant } from "@/components/ui";
 import { useSession } from "@/contexts/SessionContext";
-import { APP_NAME, STAFF_ROLES } from "@/lib/constants";
+import { NAV_ITEMS } from "@/lib/navigation";
 
 export default function DashboardContent() {
-  const { session, logout, hasRole } = useSession();
-  const router = useRouter();
+  const { session, hasRole } = useSession();
+
+  const accessibleModules = NAV_ITEMS.filter((item) =>
+    hasRole(item.allowedRoles),
+  );
 
   return (
-    <div className="max-w-4xl mx-auto p-8 flex flex-col gap-6">
+    <div className="p-6 flex flex-col gap-6 max-w-5xl">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">
+          Welcome back, {session.staff.fullName.split(" ")[0]}
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Here is your system overview.
+        </p>
+      </div>
 
-      <PageHeader
-        title="Dashboard"
-        subtitle={APP_NAME}
-        actions={
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push("/account")}
-            >
-              My Account
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => void logout()}
-            >
-              Logout
-            </Button>
-          </>
-        }
-      />
-
-      <SectionCard title="Session Verified">
+      <SectionCard title="Your Account">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold">
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-lg">
             {session.staff.fullName.charAt(0).toUpperCase()}
           </div>
           <div>
@@ -58,30 +43,46 @@ export default function DashboardContent() {
         </div>
       </SectionCard>
 
-      {hasRole([STAFF_ROLES.SUPER_ADMIN, STAFF_ROLES.ADMIN]) && (
-        <SectionCard title="Admin Tools">
-          <p className="text-sm text-slate-500 mb-4">
-            This panel is only visible to Admin and Super Admin roles.
-            Staff management arrives in Week 3.
-          </p>
-          <Button variant="primary" size="sm" disabled>
-            Manage Staff (coming Day 12)
-          </Button>
-        </SectionCard>
-      )}
+      <SectionCard title="Your Modules">
+        <p className="text-sm text-slate-500 mb-4">
+          You have access to {accessibleModules.length} module
+          {accessibleModules.length !== 1 ? "s" : ""}.
+        </p>
 
-      <SectionCard title="Day 10 Verification">
-        <ul className="text-sm text-slate-600 flex flex-col gap-2">
-          <li> Profile updates sync instantly via updateSession()</li>
-          <li> Password changes rotate the token via replaceSession()</li>
-          <li> Current password required before any password change</li>
-        </ul>
+        <div className="grid grid-cols-3 gap-3">
+          {accessibleModules.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 transition-all duration-150 group"
+            >
+              <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">
+                {item.label}
+              </span>
+              <span className="text-slate-300 group-hover:text-blue-400 text-lg leading-none">
+                →
+              </span>
+            </Link>
+          ))}
+        </div>
       </SectionCard>
 
-      <p className="text-center text-xs text-slate-400">
-        Full sidebar navigation and module switching build on Day 11.
-      </p>
-
+      <SectionCard title="System Status">
+        <ul className="flex flex-col gap-2 text-sm text-slate-600">
+          <li className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            Authentication system fully operational
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            Session verified and active
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+            Business modules building from Day 12 onward
+          </li>
+        </ul>
+      </SectionCard>
     </div>
   );
 }
