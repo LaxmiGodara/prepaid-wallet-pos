@@ -1,4 +1,4 @@
-
+  
 import type { Metadata } from "next";
 
 import DashboardContent from "./_components/DashboardContent";
