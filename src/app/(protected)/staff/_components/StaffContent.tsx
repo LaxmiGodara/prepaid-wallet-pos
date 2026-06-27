@@ -39,25 +39,31 @@ interface EditFormData {
   role: string;
 }
 
+interface ResetFormData {
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
 type CreateFormErrors = Partial<Record<keyof CreateFormData, string>>;
 type EditFormErrors = Partial<Record<keyof EditFormData, string>>;
+type ResetFormErrors = Partial<Record<keyof ResetFormData, string>>;
 
 function validateCreateForm(data: CreateFormData): CreateFormErrors {
   const errors: CreateFormErrors = {};
   if (!data.fullName.trim()) errors.fullName = "Full name is required.";
-  else if (data.fullName.trim().length < 2) errors.fullName = "At least 2 characters.";
-
+  else if (data.fullName.trim().length < 2)
+    errors.fullName = "At least 2 characters.";
   const username = data.username.trim().toLowerCase();
   if (!username) errors.username = "Username is required.";
   else if (username.length < 3) errors.username = "At least 3 characters.";
-  else if (!/^[a-z0-9_]+$/.test(username)) errors.username = "Lowercase letters, numbers, underscores only.";
-
+  else if (!/^[a-z0-9_]+$/.test(username))
+    errors.username = "Lowercase letters, numbers, underscores only.";
   if (!data.password) errors.password = "Password is required.";
   else if (data.password.length < 8) errors.password = "At least 8 characters.";
-
-  if (!data.confirmPassword) errors.confirmPassword = "Please confirm the password.";
-  else if (data.password !== data.confirmPassword) errors.confirmPassword = "Passwords do not match.";
-
+  if (!data.confirmPassword)
+    errors.confirmPassword = "Please confirm the password.";
+  else if (data.password !== data.confirmPassword)
+    errors.confirmPassword = "Passwords do not match.";
   if (!data.role) errors.role = "Role is required.";
   return errors;
 }
@@ -65,8 +71,21 @@ function validateCreateForm(data: CreateFormData): CreateFormErrors {
 function validateEditForm(data: EditFormData): EditFormErrors {
   const errors: EditFormErrors = {};
   if (!data.fullName.trim()) errors.fullName = "Full name cannot be empty.";
-  else if (data.fullName.trim().length < 2) errors.fullName = "At least 2 characters.";
+  else if (data.fullName.trim().length < 2)
+    errors.fullName = "At least 2 characters.";
   if (!data.role) errors.role = "Role is required.";
+  return errors;
+}
+
+function validateResetForm(data: ResetFormData): ResetFormErrors {
+  const errors: ResetFormErrors = {};
+  if (!data.newPassword) errors.newPassword = "New password is required.";
+  else if (data.newPassword.length < 8)
+    errors.newPassword = "At least 8 characters.";
+  if (!data.confirmNewPassword)
+    errors.confirmNewPassword = "Please confirm the password.";
+  else if (data.newPassword !== data.confirmNewPassword)
+    errors.confirmNewPassword = "Passwords do not match.";
   return errors;
 }
 
@@ -103,18 +122,32 @@ export default function StaffContent() {
   const [listError, setListError] = useState("");
 
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [createData, setCreateData] = useState<CreateFormData>(INITIAL_CREATE_DATA);
+  const [createData, setCreateData] =
+    useState<CreateFormData>(INITIAL_CREATE_DATA);
   const [createErrors, setCreateErrors] = useState<CreateFormErrors>({});
   const [createRequestError, setCreateRequestError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
   const [editingStaff, setEditingStaff] = useState<StaffRecord | null>(null);
-  const [editData, setEditData] = useState<EditFormData>({ fullName: "", role: "" });
+  const [editData, setEditData] = useState<EditFormData>({
+    fullName: "",
+    role: "",
+  });
   const [editErrors, setEditErrors] = useState<EditFormErrors>({});
   const [editRequestError, setEditRequestError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const [resetTarget, setResetTarget] = useState<StaffRecord | null>(null);
+  const [resetData, setResetData] = useState<ResetFormData>({
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+  const [resetErrors, setResetErrors] = useState<ResetFormErrors>({});
+  const [resetRequestError, setResetRequestError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const fetchStaff = useCallback(async (page: number): Promise<void> => {
     setIsLoading(true);
@@ -123,7 +156,7 @@ export default function StaffContent() {
       const authHeader = getAuthorizationHeader();
       const response = await fetch(
         `/api/staff?page=${page}&limit=${PAGINATION.DEFAULT_LIMIT}`,
-        { headers: authHeader ? { Authorization: authHeader } : {} }
+        { headers: authHeader ? { Authorization: authHeader } : {} },
       );
       const result = await response.json();
       if (!result.success) {
@@ -143,8 +176,26 @@ export default function StaffContent() {
     void fetchStaff(currentPage);
   }, [currentPage, fetchStaff]);
 
+  function closeAllPanels(): void {
+    setShowCreateForm(false);
+    setCreateData(INITIAL_CREATE_DATA);
+    setCreateErrors({});
+    setCreateRequestError("");
+
+    setEditingStaff(null);
+    setEditData({ fullName: "", role: "" });
+    setEditErrors({});
+    setEditRequestError("");
+
+    setResetTarget(null);
+    setResetData({ newPassword: "", confirmNewPassword: "" });
+    setResetErrors({});
+    setResetRequestError("");
+    setResetSuccess("");
+  }
+
   function handleCreateChange(
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ): void {
     const { name, value } = event.target;
     setCreateData((prev) => ({ ...prev, [name]: value }));
@@ -155,24 +206,12 @@ export default function StaffContent() {
   }
 
   function handleOpenCreateForm(): void {
-    setEditingStaff(null);
-    setEditErrors({});
-    setEditRequestError("");
+    closeAllPanels();
     setShowCreateForm(true);
-    setCreateData(INITIAL_CREATE_DATA);
-    setCreateErrors({});
-    setCreateRequestError("");
-  }
-
-  function handleCancelCreate(): void {
-    setShowCreateForm(false);
-    setCreateData(INITIAL_CREATE_DATA);
-    setCreateErrors({});
-    setCreateRequestError("");
   }
 
   async function handleCreateSubmit(
-    event: React.SubmitEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
     const errors = validateCreateForm(createData);
@@ -194,49 +233,39 @@ export default function StaffContent() {
       });
       const result = await response.json();
       if (!result.success) {
-        if (result.errors && result.errors.length > 0) {
-          const backendErrors: CreateFormErrors = {};
+        if (result.errors?.length > 0) {
+          const be: CreateFormErrors = {};
           (result.errors as Array<{ field: string; message: string }>).forEach(
-            (err) => { backendErrors[err.field as keyof CreateFormData] = err.message; }
+            (e) => {
+              be[e.field as keyof CreateFormData] = e.message;
+            },
           );
-          setCreateErrors(backendErrors);
+          setCreateErrors(be);
         } else {
-          setCreateRequestError(result.message ?? "Failed to create staff account.");
+          setCreateRequestError(
+            result.message ?? "Failed to create staff account.",
+          );
         }
         return;
       }
-      handleCancelCreate();
-      if (currentPage === 1) {
-        void fetchStaff(1);
-      } else {
-        setCurrentPage(1);
-      }
+      closeAllPanels();
+      if (currentPage === 1) void fetchStaff(1);
+      else setCurrentPage(1);
     } catch {
-      setCreateRequestError("Unable to reach the server. Please try again.");
+      setCreateRequestError("Unable to reach the server.");
     } finally {
       setIsCreating(false);
     }
   }
 
   function handleOpenEdit(staff: StaffRecord): void {
-    setShowCreateForm(false);
-    setCreateErrors({});
-    setCreateRequestError("");
+    closeAllPanels();
     setEditingStaff(staff);
     setEditData({ fullName: staff.fullName, role: staff.role });
-    setEditErrors({});
-    setEditRequestError("");
-  }
-
-  function handleCancelEdit(): void {
-    setEditingStaff(null);
-    setEditData({ fullName: "", role: "" });
-    setEditErrors({});
-    setEditRequestError("");
   }
 
   function handleEditChange(
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ): void {
     const { name, value } = event.target;
     setEditData((prev) => ({ ...prev, [name]: value }));
@@ -247,20 +276,17 @@ export default function StaffContent() {
   }
 
   async function handleEditSubmit(
-    event: React.SubmitEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
     if (!editingStaff) return;
-
     const errors = validateEditForm(editData);
     if (Object.keys(errors).length > 0) {
       setEditErrors(errors);
       return;
     }
-
     setIsEditing(true);
     setEditRequestError("");
-
     try {
       const authHeader = getAuthorizationHeader();
       const response = await fetch(`/api/staff/${editingStaff.id}`, {
@@ -274,33 +300,34 @@ export default function StaffContent() {
           role: editData.role,
         }),
       });
-
       const result = await response.json();
-
       if (!result.success) {
-        if (result.errors && result.errors.length > 0) {
-          const backendErrors: EditFormErrors = {};
+        if (result.errors?.length > 0) {
+          const be: EditFormErrors = {};
           (result.errors as Array<{ field: string; message: string }>).forEach(
-            (err) => { backendErrors[err.field as keyof EditFormData] = err.message; }
+            (e) => {
+              be[e.field as keyof EditFormData] = e.message;
+            },
           );
-          setEditErrors(backendErrors);
+          setEditErrors(be);
         } else {
-          setEditRequestError(result.message ?? "Failed to update staff account.");
+          setEditRequestError(result.message ?? "Failed to update.");
         }
         return;
       }
-
-      const updatedRecord = result.data as StaffRecord;
+      const updated = result.data as StaffRecord;
       setStaffList((prev) =>
-        prev.map((s) => (s.id === updatedRecord.id ? updatedRecord : s))
+        prev.map((s) => (s.id === updated.id ? updated : s)),
       );
-      handleCancelEdit();
+      closeAllPanels();
     } catch {
-      setEditRequestError("Unable to reach the server. Please try again.");
+      setEditRequestError("Unable to reach the server.");
     } finally {
       setIsEditing(false);
     }
   }
+
+  // ── Status Toggle Handler ─────────────────────────────────────────────────
 
   async function handleToggleStatus(staff: StaffRecord): Promise<void> {
     setTogglingId(staff.id);
@@ -315,14 +342,90 @@ export default function StaffContent() {
         setListError(result.message ?? "Failed to update status.");
         return;
       }
-      const updatedRecord = result.data as StaffRecord;
+      const updated = result.data as StaffRecord;
       setStaffList((prev) =>
-        prev.map((s) => (s.id === updatedRecord.id ? updatedRecord : s))
+        prev.map((s) => (s.id === updated.id ? updated : s)),
       );
     } catch {
       setListError("Unable to reach the server.");
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  function handleOpenReset(staff: StaffRecord): void {
+    closeAllPanels();
+    setResetTarget(staff);
+  }
+
+  function handleResetChange(event: React.ChangeEvent<HTMLInputElement>): void {
+    const { name, value } = event.target;
+    setResetData((prev) => ({ ...prev, [name]: value }));
+    if (resetErrors[name as keyof ResetFormData]) {
+      setResetErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (resetRequestError) setResetRequestError("");
+    if (resetSuccess) setResetSuccess("");
+  }
+
+  async function handleResetSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    event.preventDefault();
+    if (!resetTarget) return;
+
+    const errors = validateResetForm(resetData);
+    if (Object.keys(errors).length > 0) {
+      setResetErrors(errors);
+      return;
+    }
+
+    setIsResetting(true);
+    setResetRequestError("");
+    setResetSuccess("");
+
+    try {
+      const authHeader = getAuthorizationHeader();
+      const response = await fetch(`/api/staff/${resetTarget.id}/password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authHeader ? { Authorization: authHeader } : {}),
+        },
+        body: JSON.stringify(resetData),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        if (result.errors?.length > 0) {
+          const be: ResetFormErrors = {};
+          (result.errors as Array<{ field: string; message: string }>).forEach(
+            (e) => {
+              be[e.field as keyof ResetFormData] = e.message;
+            },
+          );
+          setResetErrors(be);
+        } else {
+          setResetRequestError(result.message ?? "Failed to reset password.");
+        }
+        return;
+      }
+
+      setResetSuccess(
+        `Password for ${resetTarget.fullName} has been reset. Share the new password with them securely.`,
+      );
+      setResetData({ newPassword: "", confirmNewPassword: "" });
+
+      // Auto-close panel after 3 seconds
+      setTimeout(() => {
+        setResetTarget(null);
+        setResetSuccess("");
+      }, 3000);
+    } catch {
+      setResetRequestError("Unable to reach the server.");
+    } finally {
+      setIsResetting(false);
     }
   }
 
@@ -342,12 +445,14 @@ export default function StaffContent() {
     if (
       session.staff.role === STAFF_ROLES.ADMIN &&
       staff.role === STAFF_ROLES.ADMIN
-    ) return false;
+    )
+      return false;
     return true;
   }
 
   return (
     <div className="p-6 flex flex-col gap-6">
+      {/* Page Header */}
       <PageHeader
         title="Staff Management"
         subtitle={
@@ -356,7 +461,7 @@ export default function StaffContent() {
             : "Manage your team"
         }
         actions={
-          !showCreateForm && !editingStaff ? (
+          !showCreateForm && !editingStaff && !resetTarget ? (
             <Button variant="primary" size="sm" onClick={handleOpenCreateForm}>
               New Staff
             </Button>
@@ -366,7 +471,11 @@ export default function StaffContent() {
 
       {showCreateForm && (
         <SectionCard title="Create Staff Account">
-          <form onSubmit={handleCreateSubmit} className="grid grid-cols-2 gap-4" noValidate>
+          <form
+            onSubmit={handleCreateSubmit}
+            className="grid grid-cols-2 gap-4"
+            noValidate
+          >
             <Input
               label="Full Name"
               name="fullName"
@@ -420,14 +529,18 @@ export default function StaffContent() {
                 name="role"
                 value={createData.role}
                 onChange={handleCreateChange}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all duration-150"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all"
               >
                 {creatableRoles.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
               {createErrors.role && (
-                <p className="text-xs font-medium text-red-600">{createErrors.role}</p>
+                <p className="text-xs font-medium text-red-600">
+                  {createErrors.role}
+                </p>
               )}
             </div>
             <div className="flex items-center">
@@ -447,7 +560,12 @@ export default function StaffContent() {
                 <Button type="submit" variant="primary" isLoading={isCreating}>
                   {isCreating ? "Creating..." : "Create Account"}
                 </Button>
-                <Button type="button" variant="secondary" onClick={handleCancelCreate} disabled={isCreating}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeAllPanels}
+                  disabled={isCreating}
+                >
                   Cancel
                 </Button>
               </div>
@@ -458,7 +576,11 @@ export default function StaffContent() {
 
       {editingStaff && (
         <SectionCard title={`Edit: ${editingStaff.fullName}`}>
-          <form onSubmit={handleEditSubmit} className="grid grid-cols-2 gap-4" noValidate>
+          <form
+            onSubmit={handleEditSubmit}
+            className="grid grid-cols-2 gap-4"
+            noValidate
+          >
             <Input
               label="Full Name"
               name="fullName"
@@ -485,14 +607,18 @@ export default function StaffContent() {
                 name="role"
                 value={editData.role}
                 onChange={handleEditChange}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all duration-150"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all"
               >
                 {editableRoles.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
               </select>
               {editErrors.role && (
-                <p className="text-xs font-medium text-red-600">{editErrors.role}</p>
+                <p className="text-xs font-medium text-red-600">
+                  {editErrors.role}
+                </p>
               )}
             </div>
             <div className="flex items-end pb-0.5">
@@ -510,7 +636,12 @@ export default function StaffContent() {
                 <Button type="submit" variant="primary" isLoading={isEditing}>
                   {isEditing ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button type="button" variant="secondary" onClick={handleCancelEdit} disabled={isEditing}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeAllPanels}
+                  disabled={isEditing}
+                >
                   Cancel
                 </Button>
               </div>
@@ -519,6 +650,79 @@ export default function StaffContent() {
         </SectionCard>
       )}
 
+      {resetTarget && (
+        <SectionCard title={`Reset Password: ${resetTarget.fullName}`}>
+          {/* Security context note */}
+          <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+            <p className="text-sm text-amber-800 font-medium">
+              Security Action
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Setting a new password for{" "}
+              <strong>@{resetTarget.username}</strong>. Their existing sessions
+              will be invalidated immediately. Share the new password with them
+              securely — they should change it via My Account after logging in.
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleResetSubmit}
+            className="grid grid-cols-2 gap-4"
+            noValidate
+          >
+            <Input
+              label="New Password"
+              name="newPassword"
+              type="password"
+              placeholder="Min 8 characters"
+              value={resetData.newPassword}
+              onChange={handleResetChange}
+              error={resetErrors.newPassword}
+              required
+              autoComplete="new-password"
+            />
+            <Input
+              label="Confirm New Password"
+              name="confirmNewPassword"
+              type="password"
+              placeholder="Repeat new password"
+              value={resetData.confirmNewPassword}
+              onChange={handleResetChange}
+              error={resetErrors.confirmNewPassword}
+              required
+              autoComplete="new-password"
+            />
+
+            <div className="col-span-2 flex flex-col gap-3">
+              {resetRequestError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {resetRequestError}
+                </div>
+              )}
+              {resetSuccess && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {resetSuccess}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <Button type="submit" variant="danger" isLoading={isResetting}>
+                  {isResetting ? "Resetting..." : "Reset Password"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeAllPanels}
+                  disabled={isResetting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </form>
+        </SectionCard>
+      )}
+
+      {/* Staff Table */}
       <SectionCard
         title="All Staff"
         noPadding
@@ -547,7 +751,14 @@ export default function StaffContent() {
         {!isLoading && listError && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <p className="text-sm text-red-500">{listError}</p>
-            <Button variant="secondary" size="sm" onClick={() => { setListError(""); void fetchStaff(currentPage); }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setListError("");
+                void fetchStaff(currentPage);
+              }}
+            >
               Try Again
             </Button>
           </div>
@@ -555,24 +766,27 @@ export default function StaffContent() {
 
         {!isLoading && !listError && staffList.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-2">
-            <p className="text-sm font-medium text-slate-500">No staff found.</p>
-            <p className="text-xs text-slate-400">Create the first staff account above.</p>
+            <p className="text-sm font-medium text-slate-500">
+              No staff found.
+            </p>
           </div>
         )}
 
         {!isLoading && !listError && staffList.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[720px]">
+            <table className="w-full border-collapse min-w-[800px]">
               <thead>
                 <tr>
-                  {["Staff Member", "Role", "Status", "Created", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {["Staff Member", "Role", "Status", "Created", "Actions"].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -586,19 +800,29 @@ export default function StaffContent() {
                         <p className="text-sm font-medium text-slate-800 leading-tight">
                           {staff.fullName}
                           {staff.id === session.staff.id && (
-                            <span className="ml-2 text-xs font-normal text-blue-500">(you)</span>
+                            <span className="ml-2 text-xs font-normal text-blue-500">
+                              (you)
+                            </span>
                           )}
                         </p>
-                        <p className="text-xs text-slate-400 mt-0.5">@{staff.username}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          @{staff.username}
+                        </p>
                       </div>
                     </td>
 
                     <td className="px-6 py-4">
-                      <Badge label={staff.role} variant={getRoleVariant(staff.role)} />
+                      <Badge
+                        label={staff.role}
+                        variant={getRoleVariant(staff.role)}
+                      />
                     </td>
 
                     <td className="px-6 py-4">
-                      <Badge label={staff.status} variant={getStatusVariant(staff.status)} />
+                      <Badge
+                        label={staff.status}
+                        variant={getStatusVariant(staff.status)}
+                      />
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
@@ -607,11 +831,12 @@ export default function StaffContent() {
 
                     <td className="px-6 py-4">
                       {canActOnStaff(staff) ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Edit */}
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(staff)}
-                            disabled={togglingId === staff.id}
+                            disabled={!!togglingId}
                             className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors"
                           >
                             Edit
@@ -619,6 +844,19 @@ export default function StaffContent() {
 
                           <span className="text-slate-200">|</span>
 
+                          {/* Reset Password - NEW ON DAY 14 */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReset(staff)}
+                            disabled={!!togglingId}
+                            className="text-xs font-medium text-amber-600 hover:text-amber-700 disabled:opacity-40 transition-colors"
+                          >
+                            Reset PW
+                          </button>
+
+                          <span className="text-slate-200">|</span>
+
+                          {/* Status Toggle */}
                           <button
                             type="button"
                             onClick={() => void handleToggleStatus(staff)}
@@ -633,8 +871,8 @@ export default function StaffContent() {
                             {togglingId === staff.id
                               ? "Updating..."
                               : staff.status === RECORD_STATUS.ACTIVE
-                              ? "Deactivate"
-                              : "Activate"}
+                                ? "Deactivate"
+                                : "Activate"}
                           </button>
                         </div>
                       ) : (
@@ -648,6 +886,7 @@ export default function StaffContent() {
           </div>
         )}
 
+        {/* Pagination */}
         {!isLoading && !listError && meta.totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
             <p className="text-xs text-slate-500">
@@ -678,7 +917,9 @@ export default function StaffContent() {
                 variant="secondary"
                 size="sm"
                 disabled={currentPage === meta.totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(meta.totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(meta.totalPages, p + 1))
+                }
               >
                 Next
               </Button>

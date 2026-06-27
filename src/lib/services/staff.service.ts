@@ -1,9 +1,12 @@
+
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 
 import { PAGINATION, RECORD_STATUS, STAFF_ROLES } from "@/lib/constants";
 import { Staff } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
+
+
 
 export interface StaffRecord {
   id: string;
@@ -14,6 +17,7 @@ export interface StaffRecord {
   createdAt: string;
   updatedAt: string;
 }
+
 
 interface ListStaffInput {
   page: number;
@@ -40,6 +44,13 @@ interface UpdateStaffInput {
   fullName?: string;
   role?: string;
 }
+
+// NEW ON DAY 14
+interface ResetPasswordInput {
+  newPassword?: string;
+  confirmNewPassword?: string;
+}
+
 
 function validateCreateStaffInput(input: CreateStaffInput): FieldError[] {
   const errors: FieldError[] = [];
@@ -92,6 +103,8 @@ function validateCreateStaffInput(input: CreateStaffInput): FieldError[] {
   return errors;
 }
 
+
+
 function checkCreateHierarchy(actorRole: string, newRole: string): void {
   if (newRole === STAFF_ROLES.SUPER_ADMIN) {
     throw new AppError(
@@ -99,11 +112,12 @@ function checkCreateHierarchy(actorRole: string, newRole: string): void {
       403
     );
   }
-
   if (newRole === STAFF_ROLES.ADMIN && actorRole !== STAFF_ROLES.SUPER_ADMIN) {
     throw new AppError("Only Super Admin can create Admin accounts.", 403);
   }
 }
+
+
 
 export async function listStaff(input: ListStaffInput): Promise<ListStaffResult> {
   const page = Math.max(1, input.page);
@@ -144,6 +158,8 @@ export async function listStaff(input: ListStaffInput): Promise<ListStaffResult>
 
   return { staffList, total };
 }
+
+
 
 export async function createStaff(
   input: CreateStaffInput,
@@ -199,6 +215,8 @@ export async function createStaff(
   };
 }
 
+
+
 function validateUpdateStaffInput(input: UpdateStaffInput): FieldError[] {
   const errors: FieldError[] = [];
 
@@ -216,15 +234,14 @@ function validateUpdateStaffInput(input: UpdateStaffInput): FieldError[] {
   if (input.role !== undefined) {
     const assignableRoles = [STAFF_ROLES.ADMIN, STAFF_ROLES.CASHIER];
     if (!assignableRoles.includes(input.role as (typeof assignableRoles)[number])) {
-      errors.push({
-        field: "role",
-        message: "Role must be Admin or Cashier.",
-      });
+      errors.push({ field: "role", message: "Role must be Admin or Cashier." });
     }
   }
 
   return errors;
 }
+
+
 
 function checkUpdateHierarchy(
   actorRole: string,
@@ -233,7 +250,7 @@ function checkUpdateHierarchy(
 ): void {
   if (targetCurrentRole === STAFF_ROLES.SUPER_ADMIN) {
     throw new AppError(
-      "Super Admin accounts cannot be modified through Staff Management. Use My Account for profile updates.",
+      "Super Admin accounts cannot be modified through Staff Management.",
       403
     );
   }
@@ -268,71 +285,7 @@ function checkUpdateHierarchy(
   }
 }
 
-export async function updateStaff(
-  targetId: string,
-  input: UpdateStaffInput,
-  actorId: string,
-  actorRole: string
-): Promise<StaffRecord> {
-  if (!mongoose.Types.ObjectId.isValid(targetId)) {
-    throw new AppError("Invalid staff ID.", 400);
-  }
 
-  if (actorId === targetId) {
-    throw new AppError(
-      "Use My Account to update your own profile.",
-      403
-    );
-  }
-
-  const targetStaff = await Staff.findOne({ _id: targetId, isDeleted: false });
-
-  if (!targetStaff) {
-    throw new AppError("Staff account not found.", 404);
-  }
-
-  checkUpdateHierarchy(actorRole, targetStaff.role, input.role);
-
-  const validationErrors = validateUpdateStaffInput(input);
-  if (validationErrors.length > 0) {
-    throw new AppError("Validation failed.", 400, validationErrors);
-  }
-
-  if (input.fullName === undefined && input.role === undefined) {
-    throw new AppError("Nothing to update. Provide fullName or role.", 400);
-  }
-
-  const updateFields: Record<string, any> = {
-    updatedBy: new mongoose.Types.ObjectId(actorId),
-  };
-
-  if (input.fullName !== undefined) {
-    updateFields.fullName = input.fullName.trim();
-  }
-  if (input.role !== undefined) {
-    updateFields.role = input.role;
-  }
-
-  const updated = await Staff.findOneAndUpdate(
-    { _id: targetId, isDeleted: false },
-    updateFields,
-    { new: true }
-  );
-
-  if (!updated) {
-    throw new AppError("Staff account not found.", 404);
-  }
-
-  return {
-    id: updated._id.toString(),
-    fullName: updated.fullName,
-    username: updated.username,
-    role: updated.role,
-    status: updated.status,
-    createdAt: updated.createdAt.toISOString(),
-    updatedAt: updated.updatedAt.toISOString(),
-  };
-}
 
 function checkStatusToggleHierarchy(
   actorRole: string,
@@ -359,6 +312,66 @@ function checkStatusToggleHierarchy(
   }
 }
 
+
+export async function updateStaff(
+  targetId: string,
+  input: UpdateStaffInput,
+  actorId: string,
+  actorRole: string
+): Promise<StaffRecord> {
+  if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    throw new AppError("Invalid staff ID.", 400);
+  }
+
+  if (actorId === targetId) {
+    throw new AppError("Use My Account to update your own profile.", 403);
+  }
+
+  const targetStaff = await Staff.findOne({ _id: targetId, isDeleted: false });
+  if (!targetStaff) {
+    throw new AppError("Staff account not found.", 404);
+  }
+
+  checkUpdateHierarchy(actorRole, targetStaff.role, input.role);
+
+  const validationErrors = validateUpdateStaffInput(input);
+  if (validationErrors.length > 0) {
+    throw new AppError("Validation failed.", 400, validationErrors);
+  }
+
+  if (input.fullName === undefined && input.role === undefined) {
+    throw new AppError("Nothing to update. Provide fullName or role.", 400);
+  }
+
+
+  const updateFields: Record<string, any> = {
+    updatedBy: new mongoose.Types.ObjectId(actorId),
+  };
+
+  if (input.fullName !== undefined) updateFields.fullName = input.fullName.trim();
+  if (input.role !== undefined) updateFields.role = input.role;
+
+  const updated = await Staff.findOneAndUpdate(
+    { _id: targetId, isDeleted: false },
+    updateFields,
+    { new: true }
+  );
+
+  if (!updated) throw new AppError("Staff account not found.", 404);
+
+  return {
+    id: updated._id.toString(),
+    fullName: updated.fullName,
+    username: updated.username,
+    role: updated.role,
+    status: updated.status,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+  };
+}
+
+
+
 export async function updateStaffStatus(
   targetId: string,
   actorId: string,
@@ -369,17 +382,11 @@ export async function updateStaffStatus(
   }
 
   if (actorId === targetId) {
-    throw new AppError(
-      "You cannot change your own account status.",
-      403
-    );
+    throw new AppError("You cannot change your own account status.", 403);
   }
 
   const targetStaff = await Staff.findOne({ _id: targetId, isDeleted: false });
-
-  if (!targetStaff) {
-    throw new AppError("Staff account not found.", 404);
-  }
+  if (!targetStaff) throw new AppError("Staff account not found.", 404);
 
   checkStatusToggleHierarchy(actorRole, targetStaff.role);
 
@@ -392,6 +399,97 @@ export async function updateStaffStatus(
     { _id: targetId, isDeleted: false },
     {
       status: newStatus,
+      updatedBy: new mongoose.Types.ObjectId(actorId),
+    },
+    { new: true }
+  );
+
+  if (!updated) throw new AppError("Staff account not found.", 404);
+
+  return {
+    id: updated._id.toString(),
+    fullName: updated.fullName,
+    username: updated.username,
+    role: updated.role,
+    status: updated.status,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+  };
+}
+
+
+
+function validateResetPasswordInput(input: ResetPasswordInput): FieldError[] {
+  const errors: FieldError[] = [];
+
+  const newPassword = input.newPassword ?? "";
+  if (!newPassword) {
+    errors.push({ field: "newPassword", message: "New password is required." });
+  } else if (newPassword.length < 8) {
+    errors.push({
+      field: "newPassword",
+      message: "Password must be at least 8 characters.",
+    });
+  }
+
+  const confirmNewPassword = input.confirmNewPassword ?? "";
+  if (!confirmNewPassword) {
+    errors.push({
+      field: "confirmNewPassword",
+      message: "Please confirm the new password.",
+    });
+  } else if (newPassword && newPassword !== confirmNewPassword) {
+    errors.push({
+      field: "confirmNewPassword",
+      message: "Passwords do not match.",
+    });
+  }
+
+  return errors;
+}
+
+
+
+export async function resetStaffPassword(
+  targetId: string,
+  input: ResetPasswordInput,
+  actorId: string,
+  actorRole: string
+): Promise<StaffRecord> {
+
+  if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    throw new AppError("Invalid staff ID.", 400);
+  }
+
+ 
+  if (actorId === targetId) {
+    throw new AppError(
+      "Use My Account to change your own password.",
+      403
+    );
+  }
+
+  
+  const validationErrors = validateResetPasswordInput(input);
+  if (validationErrors.length > 0) {
+    throw new AppError("Validation failed.", 400, validationErrors);
+  }
+
+  const targetStaff = await Staff.findOne({ _id: targetId, isDeleted: false });
+  if (!targetStaff) {
+    throw new AppError("Staff account not found.", 404);
+  }
+
+  checkUpdateHierarchy(actorRole, targetStaff.role);
+
+
+  const newPasswordHash = await bcrypt.hash(input.newPassword!, 10);
+
+  const updated = await Staff.findOneAndUpdate(
+    { _id: targetId, isDeleted: false },
+    {
+      passwordHash: newPasswordHash,
+      $inc: { tokenVersion: 1 },
       updatedBy: new mongoose.Types.ObjectId(actorId),
     },
     { new: true }
