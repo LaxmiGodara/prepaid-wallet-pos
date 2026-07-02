@@ -6,6 +6,8 @@ import { PAGINATION, RECORD_STATUS } from "@/lib/constants";
 import { Member, Wallet } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
+// ─── Output Type ──────────────────────────────────────────────────────────────
+
 export interface MemberRecord {
   id: string;
   fullName: string;
@@ -38,9 +40,14 @@ interface CreateMemberInput {
   referenceDetails?: string;
 }
 
-// ─── validateCreateMemberInput ─────────────────────────────────────────────────
-// fullName is required. mobileNumber and referenceDetails are optional -
-// they are only validated for FORMAT if a value was actually provided.
+// NEW
+interface UpdateMemberInput {
+  fullName?: string;
+  mobileNumber?: string;
+  referenceDetails?: string;
+}
+
+
 
 function validateCreateMemberInput(input: CreateMemberInput): FieldError[] {
   const errors: FieldError[] = [];
@@ -49,12 +56,17 @@ function validateCreateMemberInput(input: CreateMemberInput): FieldError[] {
   if (!fullName) {
     errors.push({ field: "fullName", message: "Full name is required." });
   } else if (fullName.length < 2) {
-    errors.push({ field: "fullName", message: "Full name must be at least 2 characters." });
+    errors.push({
+      field: "fullName",
+      message: "Full name must be at least 2 characters.",
+    });
   } else if (fullName.length > 120) {
-    errors.push({ field: "fullName", message: "Full name must not exceed 120 characters." });
+    errors.push({
+      field: "fullName",
+      message: "Full name must not exceed 120 characters.",
+    });
   }
 
-  // Optional: only validate format if a non-empty value was provided.
   const mobileNumber = input.mobileNumber?.trim() ?? "";
   if (mobileNumber && !/^[6-9]\d{9}$/.test(mobileNumber)) {
     errors.push({
@@ -63,7 +75,6 @@ function validateCreateMemberInput(input: CreateMemberInput): FieldError[] {
     });
   }
 
-  // Optional: free text, only checked for excessive length.
   const referenceDetails = input.referenceDetails?.trim() ?? "";
   if (referenceDetails.length > 300) {
     errors.push({
@@ -77,7 +88,7 @@ function validateCreateMemberInput(input: CreateMemberInput): FieldError[] {
 
 
 export async function listMembers(
-  input: ListMembersInput
+  input: ListMembersInput,
 ): Promise<ListMembersResult> {
   const page = Math.max(1, input.page);
   const limit = Math.min(Math.max(1, input.limit), PAGINATION.MAX_LIMIT);
@@ -101,15 +112,9 @@ export async function listMembers(
     Member.countDocuments(filter),
   ]);
 
-  // ── Fetch all wallets for this page of members in ONE query ──────────────
   const memberIds = members.map((m) => m._id);
   const wallets = await Wallet.find({ memberId: { $in: memberIds } });
-
-  // Build a lookup map for O(1) access while combining the two datasets.
-  // Keys are stringified ObjectIds so they can be compared reliably.
-  const walletMap = new Map(
-    wallets.map((w) => [w.memberId.toString(), w])
-  );
+  const walletMap = new Map(wallets.map((w) => [w.memberId.toString(), w]));
 
   const memberList: MemberRecord[] = members.map((m) => {
     const wallet = walletMap.get(m._id.toString());
@@ -119,8 +124,6 @@ export async function listMembers(
       mobileNumber: m.mobileNumber,
       referenceDetails: m.referenceDetails,
       status: m.status,
-      // wallet should always exist due to the transaction guarantee,
-      // but ?? provides a safe fallback in case of legacy/edge data
       walletId: wallet?._id.toString() ?? "",
       walletBalance: wallet?.currentBalance ?? 0,
       createdAt: m.createdAt.toISOString(),
@@ -132,24 +135,20 @@ export async function listMembers(
 }
 
 
-
-
 export async function createMember(
   input: CreateMemberInput,
-  actorId: string
+  actorId: string,
 ): Promise<MemberRecord> {
-  // ── Step 1: Validate ──────────────────────────────────────────────────────
   const validationErrors = validateCreateMemberInput(input);
   if (validationErrors.length > 0) {
     throw new AppError(
       "Validation failed. Please check the highlighted fields.",
       400,
-      validationErrors
+      validationErrors,
     );
   }
 
   const fullName = input.fullName!.trim();
-
   const mobileNumber = input.mobileNumber?.trim() || null;
   const referenceDetails = input.referenceDetails?.trim() || null;
 
@@ -157,7 +156,6 @@ export async function createMember(
 
   try {
     session.startTransaction();
-
 
     const [member] = await Member.create(
       [
@@ -172,7 +170,7 @@ export async function createMember(
           deletedAt: null,
         },
       ],
-      { session }
+      { session },
     );
 
     const [wallet] = await Wallet.create(
@@ -185,9 +183,8 @@ export async function createMember(
           updatedBy: null,
         },
       ],
-      { session }
+      { session },
     );
-
 
     await session.commitTransaction();
 
@@ -203,11 +200,177 @@ export async function createMember(
       updatedAt: member.updatedAt.toISOString(),
     };
   } catch (error) {
-  
     await session.abortTransaction();
-    throw error; 
+    throw error;
   } finally {
-
     session.endSession();
   }
+}
+
+
+
+function validateUpdateMemberInput(input: UpdateMemberInput): FieldError[] {
+  const errors: FieldError[] = [];
+
+  // fullName: only validate if sent (and it must be non-empty if sent)
+  if (input.fullName !== undefined) {
+    const fullName = input.fullName.trim();
+    if (!fullName) {
+      errors.push({ field: "fullName", message: "Full name cannot be empty." });
+    } else if (fullName.length < 2) {
+      errors.push({
+        field: "fullName",
+        message: "Full name must be at least 2 characters.",
+      });
+    } else if (fullName.length > 120) {
+      errors.push({
+        field: "fullName",
+        message: "Full name must not exceed 120 characters.",
+      });
+    }
+  }
+
+  // mobileNumber: only validate format if sent AND non-empty
+  // An empty string means the user intentionally cleared the field - that is valid
+  if (input.mobileNumber !== undefined && input.mobileNumber.trim()) {
+    if (!/^[6-9]\d{9}$/.test(input.mobileNumber.trim())) {
+      errors.push({
+        field: "mobileNumber",
+        message: "Mobile number must be a valid 10-digit number.",
+      });
+    }
+  }
+
+  // referenceDetails: only check length if sent and non-empty
+  if (
+    input.referenceDetails !== undefined &&
+    input.referenceDetails.trim().length > 300
+  ) {
+    errors.push({
+      field: "referenceDetails",
+      message: "Reference details must not exceed 300 characters.",
+    });
+  }
+
+  return errors;
+}
+
+
+
+export async function updateMember(
+  targetId: string,
+  input: UpdateMemberInput,
+  actorId: string,
+): Promise<MemberRecord> {
+  // ── Validate ID ───────────────────────────────────────────────────────────
+  if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    throw new AppError("Invalid member ID.", 400);
+  }
+
+  // ── Validate Input ────────────────────────────────────────────────────────
+  const validationErrors = validateUpdateMemberInput(input);
+  if (validationErrors.length > 0) {
+    throw new AppError("Validation failed.", 400, validationErrors);
+  }
+
+  // ── Nothing to Update ─────────────────────────────────────────────────────
+  const hasAnyField =
+    input.fullName !== undefined ||
+    input.mobileNumber !== undefined ||
+    input.referenceDetails !== undefined;
+
+  if (!hasAnyField) {
+    throw new AppError("Nothing to update. Provide at least one field.", 400);
+  }
+
+  const updateFields: Record<string, any> = {
+    updatedBy: new mongoose.Types.ObjectId(actorId),
+  };
+
+  if (input.fullName !== undefined) {
+    updateFields.fullName = input.fullName.trim();
+  }
+
+  if (input.mobileNumber !== undefined) {
+    // || null: empty string after trim means "clear this field intentionally"
+    updateFields.mobileNumber = input.mobileNumber.trim() || null;
+  }
+
+  if (input.referenceDetails !== undefined) {
+    updateFields.referenceDetails = input.referenceDetails.trim() || null;
+  }
+
+  // ── Apply Update ──────────────────────────────────────────────────────────
+  const updated = await Member.findOneAndUpdate(
+    { _id: targetId, isDeleted: false },
+    updateFields,
+    { new: true },
+  );
+
+  if (!updated) {
+    throw new AppError("Member not found.", 404);
+  }
+
+
+  const wallet = await Wallet.findOne({ memberId: updated._id });
+
+  return {
+    id: updated._id.toString(),
+    fullName: updated.fullName,
+    mobileNumber: updated.mobileNumber,
+    referenceDetails: updated.referenceDetails,
+    status: updated.status,
+    walletId: wallet?._id.toString() ?? "",
+    walletBalance: wallet?.currentBalance ?? 0,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+  };
+}
+
+
+
+export async function updateMemberStatus(
+  targetId: string,
+  actorId: string,
+): Promise<MemberRecord> {
+  if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    throw new AppError("Invalid member ID.", 400);
+  }
+
+  const member = await Member.findOne({ _id: targetId, isDeleted: false });
+  if (!member) {
+    throw new AppError("Member not found.", 404);
+  }
+
+  const newStatus =
+    member.status === RECORD_STATUS.ACTIVE
+      ? RECORD_STATUS.INACTIVE
+      : RECORD_STATUS.ACTIVE;
+
+  const updated = await Member.findOneAndUpdate(
+    { _id: targetId, isDeleted: false },
+    {
+      status: newStatus,
+      updatedBy: new mongoose.Types.ObjectId(actorId),
+    },
+    { new: true },
+  );
+
+  if (!updated) {
+    throw new AppError("Member not found.", 404);
+  }
+
+  const wallet = await Wallet.findOne({ memberId: updated._id });
+
+  return {
+    id: updated._id.toString(),
+    fullName: updated.fullName,
+    mobileNumber: updated.mobileNumber,
+    referenceDetails: updated.referenceDetails,
+    status: updated.status,
+    walletId: wallet?._id.toString() ?? "",
+    walletBalance: wallet?.currentBalance ?? 0,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+  };
 }
