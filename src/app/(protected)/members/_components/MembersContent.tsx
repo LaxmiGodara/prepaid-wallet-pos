@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -28,6 +29,28 @@ interface MemberRecord {
   updatedAt: string;
 }
 
+// Richer shape returned by GET /api/members/[id]
+interface MemberDetailRecord {
+  id: string;
+  fullName: string;
+  mobileNumber: string | null;
+  referenceDetails: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  wallet: {
+    id: string;
+    currentBalance: number;
+    status: string;
+  } | null;
+  card: {
+    id: string;
+    cardNumber: string;
+    status: string;
+    expiresAt: string;
+  } | null;
+}
+
 interface CreateFormData {
   fullName: string;
   mobileNumber: string;
@@ -48,35 +71,22 @@ type EditFormErrors = Partial<Record<keyof EditFormData, string>>;
 function validateCreateForm(data: CreateFormData): CreateFormErrors {
   const errors: CreateFormErrors = {};
   if (!data.fullName.trim()) errors.fullName = "Full name is required.";
-  else if (data.fullName.trim().length < 2)
-    errors.fullName = "At least 2 characters.";
-  if (
-    data.mobileNumber.trim() &&
-    !/^[6-9]\d{9}$/.test(data.mobileNumber.trim())
-  ) {
+  else if (data.fullName.trim().length < 2) errors.fullName = "At least 2 characters.";
+  if (data.mobileNumber.trim() && !/^[6-9]\d{9}$/.test(data.mobileNumber.trim())) {
     errors.mobileNumber = "Enter a valid 10-digit mobile number.";
   }
-  if (data.referenceDetails.trim().length > 300) {
-    errors.referenceDetails = "Must not exceed 300 characters.";
-  }
+  if (data.referenceDetails.trim().length > 300) errors.referenceDetails = "Max 300 characters.";
   return errors;
 }
 
 function validateEditForm(data: EditFormData): EditFormErrors {
   const errors: EditFormErrors = {};
-  // fullName is always present in the edit form (pre-filled from existing)
   if (!data.fullName.trim()) errors.fullName = "Full name cannot be empty.";
-  else if (data.fullName.trim().length < 2)
-    errors.fullName = "At least 2 characters.";
-  if (
-    data.mobileNumber.trim() &&
-    !/^[6-9]\d{9}$/.test(data.mobileNumber.trim())
-  ) {
+  else if (data.fullName.trim().length < 2) errors.fullName = "At least 2 characters.";
+  if (data.mobileNumber.trim() && !/^[6-9]\d{9}$/.test(data.mobileNumber.trim())) {
     errors.mobileNumber = "Enter a valid 10-digit mobile number.";
   }
-  if (data.referenceDetails.trim().length > 300) {
-    errors.referenceDetails = "Must not exceed 300 characters.";
-  }
+  if (data.referenceDetails.trim().length > 300) errors.referenceDetails = "Max 300 characters.";
   return errors;
 }
 
@@ -84,9 +94,14 @@ function validateEditForm(data: EditFormData): EditFormErrors {
 
 function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+function formatDateTime(isoString: string): string {
+  return new Date(isoString).toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
@@ -95,16 +110,11 @@ function formatCurrency(amount: number): string {
 }
 
 const INITIAL_CREATE_DATA: CreateFormData = {
-  fullName: "",
-  mobileNumber: "",
-  referenceDetails: "",
+  fullName: "", mobileNumber: "", referenceDetails: "",
 };
 
 const INITIAL_META: PaginationMeta = {
-  page: 1,
-  limit: PAGINATION.DEFAULT_LIMIT,
-  total: 0,
-  totalPages: 0,
+  page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -117,32 +127,33 @@ export default function MembersContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState("");
 
-  // ── 2. Search + Filter State ──────────────────────────────────────────────
+  // ── 2. Search + Filter ────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   // ── 3. Create Form State ──────────────────────────────────────────────────
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [createData, setCreateData] =
-    useState<CreateFormData>(INITIAL_CREATE_DATA);
+  const [createData, setCreateData] = useState<CreateFormData>(INITIAL_CREATE_DATA);
   const [createErrors, setCreateErrors] = useState<CreateFormErrors>({});
   const [createRequestError, setCreateRequestError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // ── 4. Edit Form State - NEW ──────────────────────────────────────────────
+  // ── 4. Edit Form State ────────────────────────────────────────────────────
   const [editingMember, setEditingMember] = useState<MemberRecord | null>(null);
-  const [editData, setEditData] = useState<EditFormData>({
-    fullName: "",
-    mobileNumber: "",
-    referenceDetails: "",
-  });
+  const [editData, setEditData] = useState<EditFormData>({ fullName: "", mobileNumber: "", referenceDetails: "" });
   const [editErrors, setEditErrors] = useState<EditFormErrors>({});
   const [editRequestError, setEditRequestError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // ── 5. Status Toggle State - NEW ─────────────────────────────────────────
+  // ── 5. Status Toggle State ────────────────────────────────────────────────
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  // ── 6. Detail Panel State - NEW ON DAY 18 ────────────────────────────────
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MemberDetailRecord | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   // ── Debounce ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,7 +164,7 @@ export default function MembersContent() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // ── Fetch Members ─────────────────────────────────────────────────────────
+  // ── Fetch List ────────────────────────────────────────────────────────────
   const fetchMembers = useCallback(
     async (page: number, search: string, status: string): Promise<void> => {
       setIsLoading(true);
@@ -170,10 +181,7 @@ export default function MembersContent() {
           headers: authHeader ? { Authorization: authHeader } : {},
         });
         const result = await response.json();
-        if (!result.success) {
-          setListError(result.message ?? "Failed to load members.");
-          return;
-        }
+        if (!result.success) { setListError(result.message ?? "Failed to load members."); return; }
         setMemberList(result.data as MemberRecord[]);
         if (result.meta) setMeta(result.meta as PaginationMeta);
       } catch {
@@ -182,15 +190,44 @@ export default function MembersContent() {
         setIsLoading(false);
       }
     },
-    [],
+    []
   );
 
   useEffect(() => {
     void fetchMembers(currentPage, debouncedSearch, statusFilter);
   }, [currentPage, debouncedSearch, statusFilter, fetchMembers]);
 
-  // ── Shared Helpers ────────────────────────────────────────────────────────
+ 
+  // Runs whenever selectedMemberId changes to a non-null value.
+  const fetchDetail = useCallback(async (memberId: string): Promise<void> => {
+    setIsDetailLoading(true);
+    setDetailError("");
+    setDetail(null);
+    try {
+      const authHeader = getAuthorizationHeader();
+      const response = await fetch(`/api/members/${memberId}`, {
+        headers: authHeader ? { Authorization: authHeader } : {},
+      });
+      const result = await response.json();
+      if (!result.success) { setDetailError(result.message ?? "Failed to load member detail."); return; }
+      setDetail(result.data as MemberDetailRecord);
+    } catch {
+      setDetailError("Unable to reach the server.");
+    } finally {
+      setIsDetailLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    if (selectedMemberId) {
+      void fetchDetail(selectedMemberId);
+    } else {
+      setDetail(null);
+      setDetailError("");
+    }
+  }, [selectedMemberId, fetchDetail]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const hasActiveFilters = Boolean(searchQuery || statusFilter);
 
   function handleClearFilters(): void {
@@ -204,163 +241,101 @@ export default function MembersContent() {
     setCreateData(INITIAL_CREATE_DATA);
     setCreateErrors({});
     setCreateRequestError("");
-
     setEditingMember(null);
     setEditData({ fullName: "", mobileNumber: "", referenceDetails: "" });
     setEditErrors({});
     setEditRequestError("");
   }
 
-  // ── Create Handlers ───────────────────────────────────────────────────────
+  function handleRowClick(member: MemberRecord): void {
+    // Toggle: clicking the same row closes the panel
+    setSelectedMemberId((prev) => (prev === member.id ? null : member.id));
+  }
 
-  function handleCreateChange(
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ): void {
-    const { name, value } = event.target;
+  // ── Create Handlers ───────────────────────────────────────────────────────
+  function handleCreateChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+    const { name, value } = e.target;
     setCreateData((prev) => ({ ...prev, [name]: value }));
-    if (createErrors[name as keyof CreateFormData]) {
-      setCreateErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (createErrors[name as keyof CreateFormData]) setCreateErrors((prev) => ({ ...prev, [name]: "" }));
     if (createRequestError) setCreateRequestError("");
   }
 
-  async function handleCreateSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
+  async function handleCreateSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
     const errors = validateCreateForm(createData);
-    if (Object.keys(errors).length > 0) {
-      setCreateErrors(errors);
-      return;
-    }
-
+    if (Object.keys(errors).length > 0) { setCreateErrors(errors); return; }
     setIsCreating(true);
     setCreateRequestError("");
     try {
       const authHeader = getAuthorizationHeader();
       const response = await fetch("/api/members", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeader ? { Authorization: authHeader } : {}),
-        },
-        body: JSON.stringify({
-          fullName: createData.fullName,
-          mobileNumber: createData.mobileNumber || undefined,
-          referenceDetails: createData.referenceDetails || undefined,
-        }),
+        headers: { "Content-Type": "application/json", ...(authHeader ? { Authorization: authHeader } : {}) },
+        body: JSON.stringify({ fullName: createData.fullName, mobileNumber: createData.mobileNumber || undefined, referenceDetails: createData.referenceDetails || undefined }),
       });
       const result = await response.json();
       if (!result.success) {
         if (result.errors?.length > 0) {
           const be: CreateFormErrors = {};
-          (result.errors as Array<{ field: string; message: string }>).forEach(
-            (e) => {
-              be[e.field as keyof CreateFormData] = e.message;
-            },
-          );
+          (result.errors as Array<{ field: string; message: string }>).forEach((err) => { be[err.field as keyof CreateFormData] = err.message; });
           setCreateErrors(be);
-        } else {
-          setCreateRequestError(result.message ?? "Failed to enrol member.");
-        }
+        } else { setCreateRequestError(result.message ?? "Failed to enrol member."); }
         return;
       }
       closeAllPanels();
       handleClearFilters();
       void fetchMembers(1, "", "");
-    } catch {
-      setCreateRequestError("Unable to reach the server.");
-    } finally {
-      setIsCreating(false);
-    }
+    } catch { setCreateRequestError("Unable to reach the server."); }
+    finally { setIsCreating(false); }
   }
 
-  // ── Edit Handlers  ───────────────────────────────────────────────────
-
+  // ── Edit Handlers ─────────────────────────────────────────────────────────
   function handleOpenEdit(member: MemberRecord): void {
     closeAllPanels();
     setEditingMember(member);
-    setEditData({
-      fullName: member.fullName,
-      mobileNumber: member.mobileNumber ?? "",
-      referenceDetails: member.referenceDetails ?? "",
-    });
+    setEditData({ fullName: member.fullName, mobileNumber: member.mobileNumber ?? "", referenceDetails: member.referenceDetails ?? "" });
   }
 
-  function handleEditChange(
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ): void {
-    const { name, value } = event.target;
+  function handleEditChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+    const { name, value } = e.target;
     setEditData((prev) => ({ ...prev, [name]: value }));
-    if (editErrors[name as keyof EditFormData]) {
-      setEditErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (editErrors[name as keyof EditFormData]) setEditErrors((prev) => ({ ...prev, [name]: "" }));
     if (editRequestError) setEditRequestError("");
   }
 
-  async function handleEditSubmit(
-    event: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> {
-    event.preventDefault();
+  async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
     if (!editingMember) return;
-
     const errors = validateEditForm(editData);
-    if (Object.keys(errors).length > 0) {
-      setEditErrors(errors);
-      return;
-    }
-
+    if (Object.keys(errors).length > 0) { setEditErrors(errors); return; }
     setIsEditing(true);
     setEditRequestError("");
-
     try {
       const authHeader = getAuthorizationHeader();
       const response = await fetch(`/api/members/${editingMember.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authHeader ? { Authorization: authHeader } : {}),
-        },
-        body: JSON.stringify({
-          fullName: editData.fullName,
-          // Send the value even if empty - empty string means "clear this field"
-          mobileNumber: editData.mobileNumber,
-          referenceDetails: editData.referenceDetails,
-        }),
+        headers: { "Content-Type": "application/json", ...(authHeader ? { Authorization: authHeader } : {}) },
+        body: JSON.stringify({ fullName: editData.fullName, mobileNumber: editData.mobileNumber, referenceDetails: editData.referenceDetails }),
       });
-
       const result = await response.json();
-
       if (!result.success) {
         if (result.errors?.length > 0) {
           const be: EditFormErrors = {};
-          (result.errors as Array<{ field: string; message: string }>).forEach(
-            (e) => {
-              be[e.field as keyof EditFormData] = e.message;
-            },
-          );
+          (result.errors as Array<{ field: string; message: string }>).forEach((err) => { be[err.field as keyof EditFormData] = err.message; });
           setEditErrors(be);
-        } else {
-          setEditRequestError(result.message ?? "Failed to update member.");
-        }
+        } else { setEditRequestError(result.message ?? "Failed to update member."); }
         return;
       }
-
-      // Update this specific row in the list without a full re-fetch
       const updated = result.data as MemberRecord;
-      setMemberList((prev) =>
-        prev.map((m) => (m.id === updated.id ? updated : m)),
-      );
+      setMemberList((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      // Refresh detail panel if this member is currently selected
+      if (selectedMemberId === updated.id) void fetchDetail(updated.id);
       closeAllPanels();
-    } catch {
-      setEditRequestError("Unable to reach the server.");
-    } finally {
-      setIsEditing(false);
-    }
+    } catch { setEditRequestError("Unable to reach the server."); }
+    finally { setIsEditing(false); }
   }
 
-  // ── Status Toggle Handler  ───────────────────────────────────────────
-
+  // ── Toggle Handler ────────────────────────────────────────────────────────
   async function handleToggleStatus(member: MemberRecord): Promise<void> {
     setTogglingId(member.id);
     try {
@@ -370,49 +345,33 @@ export default function MembersContent() {
         headers: authHeader ? { Authorization: authHeader } : {},
       });
       const result = await response.json();
-      if (!result.success) {
-        setListError(result.message ?? "Failed to update status.");
-        return;
-      }
+      if (!result.success) { setListError(result.message ?? "Failed to update status."); return; }
       const updated = result.data as MemberRecord;
-      setMemberList((prev) =>
-        prev.map((m) => (m.id === updated.id ? updated : m)),
-      );
-    } catch {
-      setListError("Unable to reach the server.");
-    } finally {
-      setTogglingId(null);
-    }
+      setMemberList((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      // Refresh detail panel data to reflect the new status
+      if (selectedMemberId === updated.id) void fetchDetail(updated.id);
+    } catch { setListError("Unable to reach the server."); }
+    finally { setTogglingId(null); }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 flex flex-col gap-6">
+
       <PageHeader
         title="Members"
-        subtitle={
-          meta.total > 0
-            ? `${meta.total} member${meta.total !== 1 ? "s" : ""} enrolled`
-            : "Enrol and manage members"
-        }
+        subtitle={meta.total > 0 ? `${meta.total} member${meta.total !== 1 ? "s" : ""} enrolled` : "Enrol and manage members"}
         actions={
           !showCreateForm && !editingMember ? (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                closeAllPanels();
-                setShowCreateForm(true);
-              }}
-            >
+            <Button variant="primary" size="sm" onClick={() => { closeAllPanels(); setShowCreateForm(true); }}>
               New Member
             </Button>
           ) : undefined
         }
       />
 
-      {/* Search + Filter Bar */}
+      {/* Search + Filter */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-[200px] max-w-xs">
           <input
@@ -425,10 +384,7 @@ export default function MembersContent() {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setCurrentPage(1);
-          }}
+          onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
           className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer"
         >
           <option value="">All Status</option>
@@ -436,378 +392,354 @@ export default function MembersContent() {
           <option value={RECORD_STATUS.INACTIVE}>Inactive</option>
         </select>
         {hasActiveFilters && (
-          <Button variant="secondary" size="sm" onClick={handleClearFilters}>
-            Clear Filters
-          </Button>
+          <Button variant="secondary" size="sm" onClick={handleClearFilters}>Clear Filters</Button>
         )}
       </div>
 
-      {/* Create Form Panel */}
+      {/* Create Form */}
       {showCreateForm && (
         <SectionCard title="Enrol New Member">
-          <p className="text-sm text-slate-500 mb-4">
-            A wallet with ₹0 balance is created automatically for every new
-            member.
-          </p>
-          <form
-            onSubmit={handleCreateSubmit}
-            className="grid grid-cols-2 gap-4"
-            noValidate
-          >
-            <Input
-              label="Full Name"
-              name="fullName"
-              type="text"
-              placeholder="Enter full name"
-              value={createData.fullName}
-              onChange={handleCreateChange}
-              error={createErrors.fullName}
-              required
-              autoComplete="off"
-            />
-            <Input
-              label="Mobile Number"
-              name="mobileNumber"
-              type="text"
-              placeholder="10-digit number (optional)"
-              value={createData.mobileNumber}
-              onChange={handleCreateChange}
-              error={createErrors.mobileNumber}
-              hint="Optional."
-              autoComplete="off"
-            />
+          <p className="text-sm text-slate-500 mb-4">A wallet with ₹0 balance is created automatically.</p>
+          <form onSubmit={handleCreateSubmit} className="grid grid-cols-2 gap-4" noValidate>
+            <Input label="Full Name" name="fullName" type="text" placeholder="Enter full name" value={createData.fullName} onChange={handleCreateChange} error={createErrors.fullName} required autoComplete="off" />
+            <Input label="Mobile Number" name="mobileNumber" type="text" placeholder="10-digit number (optional)" value={createData.mobileNumber} onChange={handleCreateChange} error={createErrors.mobileNumber} hint="Optional." autoComplete="off" />
             <div className="col-span-2 flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">
-                Reference Details
-              </label>
-              <textarea
-                name="referenceDetails"
-                placeholder="Employee ID, department, or any reference note (optional)"
-                value={createData.referenceDetails}
-                onChange={handleCreateChange}
-                rows={2}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none"
-              />
-              {createErrors.referenceDetails && (
-                <p className="text-xs font-medium text-red-600">
-                  {createErrors.referenceDetails}
-                </p>
-              )}
+              <label className="text-sm font-medium text-slate-700">Reference Details</label>
+              <textarea name="referenceDetails" placeholder="Employee ID, department, or any reference note (optional)" value={createData.referenceDetails} onChange={handleCreateChange} rows={2} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none" />
+              {createErrors.referenceDetails && <p className="text-xs font-medium text-red-600">{createErrors.referenceDetails}</p>}
             </div>
             <div className="col-span-2 flex flex-col gap-3">
-              {createRequestError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {createRequestError}
-                </div>
-              )}
+              {createRequestError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{createRequestError}</div>}
               <div className="flex gap-3">
-                <Button type="submit" variant="primary" isLoading={isCreating}>
-                  {isCreating ? "Enrolling..." : "Enrol Member"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={closeAllPanels}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </Button>
+                <Button type="submit" variant="primary" isLoading={isCreating}>{isCreating ? "Enrolling..." : "Enrol Member"}</Button>
+                <Button type="button" variant="secondary" onClick={closeAllPanels} disabled={isCreating}>Cancel</Button>
               </div>
             </div>
           </form>
         </SectionCard>
       )}
 
-      {/* Edit Form Panel - NEW */}
+      {/* Edit Form */}
       {editingMember && (
         <SectionCard title={`Edit: ${editingMember.fullName}`}>
-          <form
-            onSubmit={handleEditSubmit}
-            className="grid grid-cols-2 gap-4"
-            noValidate
-          >
-            <Input
-              label="Full Name"
-              name="fullName"
-              type="text"
-              placeholder="Enter full name"
-              value={editData.fullName}
-              onChange={handleEditChange}
-              error={editErrors.fullName}
-              required
-              autoComplete="off"
-            />
-            <Input
-              label="Mobile Number"
-              name="mobileNumber"
-              type="text"
-              placeholder="10-digit number (leave blank to clear)"
-              value={editData.mobileNumber}
-              onChange={handleEditChange}
-              error={editErrors.mobileNumber}
-              hint="Leave blank to remove the mobile number."
-              autoComplete="off"
-            />
+          <form onSubmit={handleEditSubmit} className="grid grid-cols-2 gap-4" noValidate>
+            <Input label="Full Name" name="fullName" type="text" placeholder="Enter full name" value={editData.fullName} onChange={handleEditChange} error={editErrors.fullName} required autoComplete="off" />
+            <Input label="Mobile Number" name="mobileNumber" type="text" placeholder="Leave blank to clear" value={editData.mobileNumber} onChange={handleEditChange} error={editErrors.mobileNumber} hint="Leave blank to remove." autoComplete="off" />
             <div className="col-span-2 flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-700">
-                Reference Details
-              </label>
-              <textarea
-                name="referenceDetails"
-                placeholder="Employee ID, department, or any reference note (leave blank to clear)"
-                value={editData.referenceDetails}
-                onChange={handleEditChange}
-                rows={2}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none"
-              />
-              {editErrors.referenceDetails && (
-                <p className="text-xs font-medium text-red-600">
-                  {editErrors.referenceDetails}
-                </p>
-              )}
+              <label className="text-sm font-medium text-slate-700">Reference Details</label>
+              <textarea name="referenceDetails" placeholder="Leave blank to clear" value={editData.referenceDetails} onChange={handleEditChange} rows={2} className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none" />
+              {editErrors.referenceDetails && <p className="text-xs font-medium text-red-600">{editErrors.referenceDetails}</p>}
             </div>
             <div className="col-span-2 flex flex-col gap-3">
-              {editRequestError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {editRequestError}
-                </div>
-              )}
+              {editRequestError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{editRequestError}</div>}
               <div className="flex gap-3">
-                <Button type="submit" variant="primary" isLoading={isEditing}>
-                  {isEditing ? "Saving..." : "Save Changes"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={closeAllPanels}
-                  disabled={isEditing}
-                >
-                  Cancel
-                </Button>
+                <Button type="submit" variant="primary" isLoading={isEditing}>{isEditing ? "Saving..." : "Save Changes"}</Button>
+                <Button type="button" variant="secondary" onClick={closeAllPanels} disabled={isEditing}>Cancel</Button>
               </div>
             </div>
           </form>
         </SectionCard>
       )}
 
-      {/* Members Table */}
-      <SectionCard
-        title="All Members"
-        noPadding
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() =>
-              void fetchMembers(currentPage, debouncedSearch, statusFilter)
-            }
-            disabled={isLoading}
-          >
-            {isLoading ? "Loading..." : "Refresh"}
-          </Button>
-        }
+      {/* Table + Detail Panel Layout */}
+      <div
+        className={selectedMemberId ? "grid gap-4 items-start" : ""}
+        style={selectedMemberId ? { gridTemplateColumns: "1fr 300px" } : {}}
       >
-        {isLoading && (
-          <div className="flex items-center justify-center py-16 gap-2">
-            <span className="flex gap-1">
-              <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:0ms]" />
-              <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:150ms]" />
-              <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:300ms]" />
-            </span>
-            <span className="text-sm text-slate-400">Loading members...</span>
-          </div>
-        )}
 
-        {!isLoading && listError && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <p className="text-sm text-red-500">{listError}</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setListError("");
-                void fetchMembers(currentPage, debouncedSearch, statusFilter);
-              }}
-            >
-              Try Again
+        {/* Members Table */}
+        <SectionCard
+          title="All Members"
+          noPadding
+          actions={
+            <Button variant="secondary" size="sm" onClick={() => void fetchMembers(currentPage, debouncedSearch, statusFilter)} disabled={isLoading}>
+              {isLoading ? "Loading..." : "Refresh"}
             </Button>
-          </div>
-        )}
+          }
+        >
+          {isLoading && (
+            <div className="flex items-center justify-center py-16 gap-2">
+              <span className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:0ms]" />
+                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:150ms]" />
+                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:300ms]" />
+              </span>
+              <span className="text-sm text-slate-400">Loading members...</span>
+            </div>
+          )}
 
-        {!isLoading && !listError && memberList.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-2">
-            {hasActiveFilters ? (
-              <>
-                <p className="text-sm font-medium text-slate-500">
-                  No members match your current filters.
-                </p>
-                <div className="mt-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleClearFilters}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-medium text-slate-500">
-                  No members enrolled yet.
-                </p>
-                <p className="text-xs text-slate-400">
-                  Use the New Member button to enrol the first member.
-                </p>
-              </>
+          {!isLoading && listError && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <p className="text-sm text-red-500">{listError}</p>
+              <Button variant="secondary" size="sm" onClick={() => { setListError(""); void fetchMembers(currentPage, debouncedSearch, statusFilter); }}>Try Again</Button>
+            </div>
+          )}
+
+          {!isLoading && !listError && memberList.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 gap-2">
+              {hasActiveFilters ? (
+                <>
+                  <p className="text-sm font-medium text-slate-500">No members match your current filters.</p>
+                  <div className="mt-2"><Button variant="secondary" size="sm" onClick={handleClearFilters}>Clear Filters</Button></div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-slate-500">No members enrolled yet.</p>
+                  <p className="text-xs text-slate-400">Use the New Member button to enrol the first member.</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {!isLoading && !listError && memberList.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[640px]">
+                <thead>
+                  <tr>
+                    {["Member", "Mobile", "Wallet Balance", "Status", "Enrolled", "Actions"].map((h) => (
+                      <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {memberList.map((member) => {
+                    const isSelected = selectedMemberId === member.id;
+                    return (
+                      <tr
+                        key={member.id}
+                        onClick={() => handleRowClick(member)}
+                        className={[
+                          "cursor-pointer transition-colors duration-100",
+                          isSelected ? "bg-blue-50/60 hover:bg-blue-50/80" : "hover:bg-slate-50/50",
+                        ].join(" ")}
+                      >
+                        <td className="px-6 py-4">
+                          <div>
+                            <p className="text-sm font-medium text-slate-800 leading-tight">{member.fullName}</p>
+                            {member.referenceDetails && (
+                              <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{member.referenceDetails}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
+                          {member.mobileNumber ?? <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-semibold text-slate-700">{formatCurrency(member.walletBalance)}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge label={member.status} variant={getStatusVariant(member.status)} />
+                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
+                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => handleOpenEdit(member)} disabled={!!togglingId} className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors">Edit</button>
+                            <span className="text-slate-200">|</span>
+                            <button type="button" onClick={() => void handleToggleStatus(member)} disabled={togglingId === member.id} className={["text-xs font-medium transition-colors disabled:opacity-40", member.status === RECORD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>
+                              {togglingId === member.id ? "Updating..." : member.status === RECORD_STATUS.ACTIVE ? "Deactivate" : "Activate"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!isLoading && !listError && meta.totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+              <p className="text-xs text-slate-500">
+                Showing <span className="font-medium text-slate-700">{(currentPage - 1) * meta.limit + 1}</span>
+                {" – "}<span className="font-medium text-slate-700">{Math.min(currentPage * meta.limit, meta.total)}</span>
+                {" of "}<span className="font-medium text-slate-700">{meta.total}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>Previous</Button>
+                <span className="text-xs text-slate-500 min-w-[80px] text-center">Page {currentPage} of {meta.totalPages}</span>
+                <Button variant="secondary" size="sm" disabled={currentPage === meta.totalPages} onClick={() => setCurrentPage((p) => Math.min(meta.totalPages, p + 1))}>Next</Button>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Detail Panel - NEW ON DAY 18 */}
+        {selectedMemberId && (
+          <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Panel Header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700">Member Details</h3>
+              <button
+                type="button"
+                onClick={() => setSelectedMemberId(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors text-lg leading-none"
+                aria-label="Close detail panel"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Detail Loading State */}
+            {isDetailLoading && (
+              <div className="flex items-center justify-center py-12 gap-2">
+                <span className="flex gap-1">
+                  <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce [animation-delay:300ms]" />
+                </span>
+              </div>
             )}
-          </div>
-        )}
 
-        {!isLoading && !listError && memberList.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse min-w-[720px]">
-              <thead>
-                <tr>
-                  {[
-                    "Member",
-                    "Mobile",
-                    "Wallet Balance",
-                    "Status",
-                    "Enrolled",
-                    "Actions",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {memberList.map((member) => (
-                  <tr
-                    key={member.id}
-                    className="hover:bg-slate-50/50 transition-colors duration-100"
-                  >
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-slate-800 leading-tight">
-                          {member.fullName}
-                        </p>
-                        {member.referenceDetails && (
-                          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[180px]">
-                            {member.referenceDetails}
-                          </p>
-                        )}
+            {/* Detail Error State */}
+            {!isDetailLoading && detailError && (
+              <div className="px-5 py-6 flex flex-col items-center gap-3">
+                <p className="text-sm text-red-500 text-center">{detailError}</p>
+                <Button variant="secondary" size="sm" onClick={() => void fetchDetail(selectedMemberId)}>Retry</Button>
+              </div>
+            )}
+
+            {/* Detail Content */}
+            {!isDetailLoading && !detailError && detail && (
+              <div className="px-5 py-5 flex flex-col gap-5">
+
+                {/* Identity */}
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-base flex-shrink-0">
+                    {detail.fullName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 break-words">{detail.fullName}</p>
+                    {detail.mobileNumber && (
+                      <p className="text-xs text-slate-500 mt-0.5">{detail.mobileNumber}</p>
+                    )}
+                    {detail.referenceDetails && (
+                      <p className="text-xs text-slate-400 mt-0.5 break-words">{detail.referenceDetails}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status */}
+                <Badge label={detail.status} variant={getStatusVariant(detail.status)} />
+
+                <div className="border-t border-slate-100" />
+
+                {/* Wallet Section */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Wallet</p>
+                  {detail.wallet ? (
+                    <div className="bg-slate-50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Balance</span>
+                        <span className="text-base font-bold text-slate-800">
+                          {formatCurrency(detail.wallet.currentBalance)}
+                        </span>
                       </div>
-                    </td>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Status</span>
+                        <Badge label={detail.wallet.status} variant={getStatusVariant(detail.wallet.status)} />
+                      </div>
+                      <div>
+                        <span className="text-xs text-slate-400">ID: </span>
+                        <span className="text-xs font-mono text-slate-500 break-all">{detail.wallet.id}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 rounded-xl px-4 py-3">
+                      <p className="text-xs text-amber-700">No wallet found.</p>
+                      <p className="text-xs text-amber-500 mt-0.5">Contact system administrator.</p>
+                    </div>
+                  )}
+                </div>
 
-                    <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
-                      {member.mobileNumber ?? (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
+                <div className="border-t border-slate-100" />
 
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-semibold text-slate-700">
-                        {formatCurrency(member.walletBalance)}
-                      </span>
-                    </td>
+                {/* Card Section */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Card</p>
+                  {detail.card ? (
+                    <div className="bg-slate-50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Card Number</span>
+                        <span className="text-xs font-mono font-medium text-slate-700">{detail.card.cardNumber}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Status</span>
+                        <Badge label={detail.card.status} variant={getStatusVariant(detail.card.status)} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-500">Expires</span>
+                        <span className="text-xs text-slate-600">{formatDate(detail.card.expiresAt)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 px-4 py-4 text-center">
+                      <p className="text-xs font-medium text-slate-400">No card assigned yet</p>
+                      <p className="text-xs text-slate-300 mt-1">Cards are assigned in the Cards module</p>
+                    </div>
+                  )}
+                </div>
 
-                    <td className="px-6 py-4">
-                      <Badge
-                        label={member.status}
-                        variant={getStatusVariant(member.status)}
-                      />
-                    </td>
+                <div className="border-t border-slate-100" />
 
-                    <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
-                      {formatDate(member.createdAt)}
-                    </td>
+                {/* Dates */}
+                <dl className="flex flex-col gap-2">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-0.5">Enrolled</dt>
+                    <dd className="text-xs text-slate-600">{formatDateTime(detail.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-0.5">Last Updated</dt>
+                    <dd className="text-xs text-slate-600">{formatDateTime(detail.updatedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-0.5">Member ID</dt>
+                    <dd className="text-xs font-mono text-slate-500 break-all">{detail.id}</dd>
+                  </div>
+                </dl>
 
-                    {/* Actions - NEW */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                {/* Quick Actions */}
+                <div className="border-t border-slate-100 pt-4 flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Actions</p>
+                  {(() => {
+                    const listMember = memberList.find((m) => m.id === detail.id);
+                    if (!listMember) return null;
+                    return (
+                      <>
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(member)}
-                          disabled={!!togglingId}
-                          className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors"
+                          onClick={() => handleOpenEdit(listMember)}
+                          className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 py-1 transition-colors"
                         >
-                          Edit
+                          Edit member profile →
                         </button>
-
-                        <span className="text-slate-200">|</span>
-
                         <button
                           type="button"
-                          onClick={() => void handleToggleStatus(member)}
-                          disabled={togglingId === member.id}
+                          onClick={() => void handleToggleStatus(listMember)}
+                          disabled={togglingId === detail.id}
                           className={[
-                            "text-xs font-medium transition-colors disabled:opacity-40",
-                            member.status === RECORD_STATUS.ACTIVE
+                            "w-full text-left text-xs font-medium py-1 transition-colors disabled:opacity-40",
+                            detail.status === RECORD_STATUS.ACTIVE
                               ? "text-red-500 hover:text-red-600"
                               : "text-green-600 hover:text-green-700",
                           ].join(" ")}
                         >
-                          {togglingId === member.id
+                          {togglingId === detail.id
                             ? "Updating..."
-                            : member.status === RECORD_STATUS.ACTIVE
-                              ? "Deactivate"
-                              : "Activate"}
+                            : detail.status === RECORD_STATUS.ACTIVE
+                            ? "Deactivate member →"
+                            : "Activate member →"}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      </>
+                    );
+                  })()}
+                </div>
 
-        {!isLoading && !listError && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-            <p className="text-xs text-slate-500">
-              Showing{" "}
-              <span className="font-medium text-slate-700">
-                {(currentPage - 1) * meta.limit + 1}
-              </span>
-              {" – "}
-              <span className="font-medium text-slate-700">
-                {Math.min(currentPage * meta.limit, meta.total)}
-              </span>
-              {" of "}
-              <span className="font-medium text-slate-700">{meta.total}</span>
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <span className="text-xs text-slate-500 min-w-[80px] text-center">
-                Page {currentPage} of {meta.totalPages}
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={currentPage === meta.totalPages}
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(meta.totalPages, p + 1))
-                }
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+              </div>
+            )}
+          </aside>
         )}
-      </SectionCard>
+      </div>
     </div>
   );
 }
