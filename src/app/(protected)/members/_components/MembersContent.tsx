@@ -1,3 +1,11 @@
+// src/app/(protected)/members/_components/MembersContent.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATED ON DAY 19: Added Readiness section to the detail panel.
+//
+// The MemberDetailRecord type now includes a readiness field.
+// The READINESS_ITEMS array drives the check list display.
+// No other changes from Day 18.
+// ─────────────────────────────────────────────────────────────────────────────
 
 "use client";
 
@@ -29,7 +37,20 @@ interface MemberRecord {
   updatedAt: string;
 }
 
-// Richer shape returned by GET /api/members/[id]
+interface ReadinessChecks {
+  memberActive: boolean;
+  walletExists: boolean;
+  walletActive: boolean;
+  cardAssigned: boolean;
+  cardActive: boolean;
+  cardNotExpired: boolean;
+}
+
+interface ReadinessStatus {
+  isReady: boolean;
+  checks: ReadinessChecks;
+}
+
 interface MemberDetailRecord {
   id: string;
   fullName: string;
@@ -49,6 +70,7 @@ interface MemberDetailRecord {
     status: string;
     expiresAt: string;
   } | null;
+  readiness: ReadinessStatus;
 }
 
 interface CreateFormData {
@@ -65,6 +87,49 @@ interface EditFormData {
 
 type CreateFormErrors = Partial<Record<keyof CreateFormData, string>>;
 type EditFormErrors = Partial<Record<keyof EditFormData, string>>;
+
+// ─── Readiness Check Item Config - NEW ON DAY 19 ─────────────────────────────
+// Data-driven: adding a new check means adding one object here.
+// The rendering loop never changes.
+
+interface ReadinessCheckItem {
+  key: keyof ReadinessChecks;
+  label: string;
+  failureHint: string;
+}
+
+const READINESS_ITEMS: ReadinessCheckItem[] = [
+  {
+    key: "memberActive",
+    label: "Member is active",
+    failureHint: "Reactivate this member account",
+  },
+  {
+    key: "walletExists",
+    label: "Wallet exists",
+    failureHint: "Contact system administrator",
+  },
+  {
+    key: "walletActive",
+    label: "Wallet is active",
+    failureHint: "Activate the wallet in the Wallets module",
+  },
+  {
+    key: "cardAssigned",
+    label: "Card assigned",
+    failureHint: "Assign a card in the Cards module",
+  },
+  {
+    key: "cardActive",
+    label: "Card is active",
+    failureHint: "Activate the card in the Cards module",
+  },
+  {
+    key: "cardNotExpired",
+    label: "Card is not expired",
+    failureHint: "Issue a replacement card",
+  },
+];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -132,24 +197,24 @@ export default function MembersContent() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  // ── 3. Create Form State ──────────────────────────────────────────────────
+  // ── 3. Create Form ────────────────────────────────────────────────────────
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createData, setCreateData] = useState<CreateFormData>(INITIAL_CREATE_DATA);
   const [createErrors, setCreateErrors] = useState<CreateFormErrors>({});
   const [createRequestError, setCreateRequestError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
-  // ── 4. Edit Form State ────────────────────────────────────────────────────
+  // ── 4. Edit Form ──────────────────────────────────────────────────────────
   const [editingMember, setEditingMember] = useState<MemberRecord | null>(null);
   const [editData, setEditData] = useState<EditFormData>({ fullName: "", mobileNumber: "", referenceDetails: "" });
   const [editErrors, setEditErrors] = useState<EditFormErrors>({});
   const [editRequestError, setEditRequestError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // ── 5. Status Toggle State ────────────────────────────────────────────────
+  // ── 5. Status Toggle ──────────────────────────────────────────────────────
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // ── 6. Detail Panel State - NEW ON DAY 18 ────────────────────────────────
+  // ── 6. Detail Panel ───────────────────────────────────────────────────────
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MemberDetailRecord | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -175,7 +240,6 @@ export default function MembersContent() {
         params.set("limit", String(PAGINATION.DEFAULT_LIMIT));
         if (search) params.set("search", search);
         if (status) params.set("status", status);
-
         const authHeader = getAuthorizationHeader();
         const response = await fetch(`/api/members?${params.toString()}`, {
           headers: authHeader ? { Authorization: authHeader } : {},
@@ -184,11 +248,8 @@ export default function MembersContent() {
         if (!result.success) { setListError(result.message ?? "Failed to load members."); return; }
         setMemberList(result.data as MemberRecord[]);
         if (result.meta) setMeta(result.meta as PaginationMeta);
-      } catch {
-        setListError("Unable to reach the server.");
-      } finally {
-        setIsLoading(false);
-      }
+      } catch { setListError("Unable to reach the server."); }
+      finally { setIsLoading(false); }
     },
     []
   );
@@ -197,8 +258,7 @@ export default function MembersContent() {
     void fetchMembers(currentPage, debouncedSearch, statusFilter);
   }, [currentPage, debouncedSearch, statusFilter, fetchMembers]);
 
- 
-  // Runs whenever selectedMemberId changes to a non-null value.
+  // ── Fetch Detail ──────────────────────────────────────────────────────────
   const fetchDetail = useCallback(async (memberId: string): Promise<void> => {
     setIsDetailLoading(true);
     setDetailError("");
@@ -211,20 +271,13 @@ export default function MembersContent() {
       const result = await response.json();
       if (!result.success) { setDetailError(result.message ?? "Failed to load member detail."); return; }
       setDetail(result.data as MemberDetailRecord);
-    } catch {
-      setDetailError("Unable to reach the server.");
-    } finally {
-      setIsDetailLoading(false);
-    }
+    } catch { setDetailError("Unable to reach the server."); }
+    finally { setIsDetailLoading(false); }
   }, []);
 
   useEffect(() => {
-    if (selectedMemberId) {
-      void fetchDetail(selectedMemberId);
-    } else {
-      setDetail(null);
-      setDetailError("");
-    }
+    if (selectedMemberId) void fetchDetail(selectedMemberId);
+    else { setDetail(null); setDetailError(""); }
   }, [selectedMemberId, fetchDetail]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -248,11 +301,10 @@ export default function MembersContent() {
   }
 
   function handleRowClick(member: MemberRecord): void {
-    // Toggle: clicking the same row closes the panel
     setSelectedMemberId((prev) => (prev === member.id ? null : member.id));
   }
 
-  // ── Create Handlers ───────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
   function handleCreateChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void {
     const { name, value } = e.target;
     setCreateData((prev) => ({ ...prev, [name]: value }));
@@ -289,7 +341,6 @@ export default function MembersContent() {
     finally { setIsCreating(false); }
   }
 
-  // ── Edit Handlers ─────────────────────────────────────────────────────────
   function handleOpenEdit(member: MemberRecord): void {
     closeAllPanels();
     setEditingMember(member);
@@ -328,14 +379,12 @@ export default function MembersContent() {
       }
       const updated = result.data as MemberRecord;
       setMemberList((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-      // Refresh detail panel if this member is currently selected
       if (selectedMemberId === updated.id) void fetchDetail(updated.id);
       closeAllPanels();
     } catch { setEditRequestError("Unable to reach the server."); }
     finally { setIsEditing(false); }
   }
 
-  // ── Toggle Handler ────────────────────────────────────────────────────────
   async function handleToggleStatus(member: MemberRecord): Promise<void> {
     setTogglingId(member.id);
     try {
@@ -348,7 +397,6 @@ export default function MembersContent() {
       if (!result.success) { setListError(result.message ?? "Failed to update status."); return; }
       const updated = result.data as MemberRecord;
       setMemberList((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-      // Refresh detail panel data to reflect the new status
       if (selectedMemberId === updated.id) void fetchDetail(updated.id);
     } catch { setListError("Unable to reach the server."); }
     finally { setTogglingId(null); }
@@ -444,7 +492,7 @@ export default function MembersContent() {
       {/* Table + Detail Panel Layout */}
       <div
         className={selectedMemberId ? "grid gap-4 items-start" : ""}
-        style={selectedMemberId ? { gridTemplateColumns: "1fr 300px" } : {}}
+        style={selectedMemberId ? { gridTemplateColumns: "1fr 320px" } : {}}
       >
 
         {/* Members Table */}
@@ -467,14 +515,12 @@ export default function MembersContent() {
               <span className="text-sm text-slate-400">Loading members...</span>
             </div>
           )}
-
           {!isLoading && listError && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <p className="text-sm text-red-500">{listError}</p>
               <Button variant="secondary" size="sm" onClick={() => { setListError(""); void fetchMembers(currentPage, debouncedSearch, statusFilter); }}>Try Again</Button>
             </div>
           )}
-
           {!isLoading && !listError && memberList.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 gap-2">
               {hasActiveFilters ? (
@@ -490,7 +536,6 @@ export default function MembersContent() {
               )}
             </div>
           )}
-
           {!isLoading && !listError && memberList.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse min-w-[640px]">
@@ -508,28 +553,15 @@ export default function MembersContent() {
                       <tr
                         key={member.id}
                         onClick={() => handleRowClick(member)}
-                        className={[
-                          "cursor-pointer transition-colors duration-100",
-                          isSelected ? "bg-blue-50/60 hover:bg-blue-50/80" : "hover:bg-slate-50/50",
-                        ].join(" ")}
+                        className={["cursor-pointer transition-colors duration-100", isSelected ? "bg-blue-50/60 hover:bg-blue-50/80" : "hover:bg-slate-50/50"].join(" ")}
                       >
                         <td className="px-6 py-4">
-                          <div>
-                            <p className="text-sm font-medium text-slate-800 leading-tight">{member.fullName}</p>
-                            {member.referenceDetails && (
-                              <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{member.referenceDetails}</p>
-                            )}
-                          </div>
+                          <p className="text-sm font-medium text-slate-800 leading-tight">{member.fullName}</p>
+                          {member.referenceDetails && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{member.referenceDetails}</p>}
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
-                          {member.mobileNumber ?? <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-semibold text-slate-700">{formatCurrency(member.walletBalance)}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge label={member.status} variant={getStatusVariant(member.status)} />
-                        </td>
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{member.mobileNumber ?? <span className="text-slate-300">—</span>}</td>
+                        <td className="px-6 py-4"><span className="text-sm font-semibold text-slate-700">{formatCurrency(member.walletBalance)}</span></td>
+                        <td className="px-6 py-4"><Badge label={member.status} variant={getStatusVariant(member.status)} /></td>
                         <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
@@ -547,7 +579,6 @@ export default function MembersContent() {
               </table>
             </div>
           )}
-
           {!isLoading && !listError && meta.totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
               <p className="text-xs text-slate-500">
@@ -564,23 +595,14 @@ export default function MembersContent() {
           )}
         </SectionCard>
 
-        {/* Detail Panel - NEW ON DAY 18 */}
+        {/* Detail Panel */}
         {selectedMemberId && (
           <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            {/* Panel Header */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-700">Member Details</h3>
-              <button
-                type="button"
-                onClick={() => setSelectedMemberId(null)}
-                className="text-slate-400 hover:text-slate-600 transition-colors text-lg leading-none"
-                aria-label="Close detail panel"
-              >
-                ×
-              </button>
+              <button type="button" onClick={() => setSelectedMemberId(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-lg leading-none" aria-label="Close">×</button>
             </div>
 
-            {/* Detail Loading State */}
             {isDetailLoading && (
               <div className="flex items-center justify-center py-12 gap-2">
                 <span className="flex gap-1">
@@ -591,7 +613,6 @@ export default function MembersContent() {
               </div>
             )}
 
-            {/* Detail Error State */}
             {!isDetailLoading && detailError && (
               <div className="px-5 py-6 flex flex-col items-center gap-3">
                 <p className="text-sm text-red-500 text-center">{detailError}</p>
@@ -599,7 +620,6 @@ export default function MembersContent() {
               </div>
             )}
 
-            {/* Detail Content */}
             {!isDetailLoading && !detailError && detail && (
               <div className="px-5 py-5 flex flex-col gap-5">
 
@@ -610,30 +630,23 @@ export default function MembersContent() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-800 break-words">{detail.fullName}</p>
-                    {detail.mobileNumber && (
-                      <p className="text-xs text-slate-500 mt-0.5">{detail.mobileNumber}</p>
-                    )}
-                    {detail.referenceDetails && (
-                      <p className="text-xs text-slate-400 mt-0.5 break-words">{detail.referenceDetails}</p>
-                    )}
+                    {detail.mobileNumber && <p className="text-xs text-slate-500 mt-0.5">{detail.mobileNumber}</p>}
+                    {detail.referenceDetails && <p className="text-xs text-slate-400 mt-0.5 break-words">{detail.referenceDetails}</p>}
                   </div>
                 </div>
 
-                {/* Status */}
                 <Badge label={detail.status} variant={getStatusVariant(detail.status)} />
 
                 <div className="border-t border-slate-100" />
 
-                {/* Wallet Section */}
+                {/* Wallet */}
                 <div>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Wallet</p>
                   {detail.wallet ? (
                     <div className="bg-slate-50 rounded-xl px-4 py-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500">Balance</span>
-                        <span className="text-base font-bold text-slate-800">
-                          {formatCurrency(detail.wallet.currentBalance)}
-                        </span>
+                        <span className="text-base font-bold text-slate-800">{formatCurrency(detail.wallet.currentBalance)}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500">Status</span>
@@ -654,7 +667,7 @@ export default function MembersContent() {
 
                 <div className="border-t border-slate-100" />
 
-                {/* Card Section */}
+                {/* Card */}
                 <div>
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Card</p>
                   {detail.card ? (
@@ -678,6 +691,60 @@ export default function MembersContent() {
                       <p className="text-xs text-slate-300 mt-1">Cards are assigned in the Cards module</p>
                     </div>
                   )}
+                </div>
+
+                <div className="border-t border-slate-100" />
+
+                {/* Readiness Section - NEW ON DAY 19 */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Billing Readiness
+                    </p>
+                    {/* Summary badge */}
+                    <span className={[
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
+                      detail.readiness.isReady
+                        ? "bg-green-100 text-green-700"
+                        : "bg-amber-100 text-amber-700",
+                    ].join(" ")}>
+                      {detail.readiness.isReady ? "✓ Ready" : "⚠ Not ready"}
+                    </span>
+                  </div>
+
+                  {/* Individual checks - data-driven from READINESS_ITEMS */}
+                  <div className="flex flex-col gap-2">
+                    {READINESS_ITEMS.map(({ key, label, failureHint }) => {
+                      const passed = detail.readiness.checks[key];
+                      return (
+                        <div key={key} className="flex items-start gap-2">
+                          {/* Check icon */}
+                          <span className={[
+                            "flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold mt-0.5",
+                            passed
+                              ? "bg-green-100 text-green-600"
+                              : "bg-red-100 text-red-500",
+                          ].join(" ")}>
+                            {passed ? "✓" : "✗"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className={[
+                              "text-xs font-medium",
+                              passed ? "text-slate-600" : "text-slate-500",
+                            ].join(" ")}>
+                              {label}
+                            </p>
+                            {/* Only show hint for failed checks */}
+                            {!passed && (
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {failureHint}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="border-t border-slate-100" />
@@ -706,29 +773,11 @@ export default function MembersContent() {
                     if (!listMember) return null;
                     return (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(listMember)}
-                          className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 py-1 transition-colors"
-                        >
+                        <button type="button" onClick={() => handleOpenEdit(listMember)} className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 py-1 transition-colors">
                           Edit member profile →
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleToggleStatus(listMember)}
-                          disabled={togglingId === detail.id}
-                          className={[
-                            "w-full text-left text-xs font-medium py-1 transition-colors disabled:opacity-40",
-                            detail.status === RECORD_STATUS.ACTIVE
-                              ? "text-red-500 hover:text-red-600"
-                              : "text-green-600 hover:text-green-700",
-                          ].join(" ")}
-                        >
-                          {togglingId === detail.id
-                            ? "Updating..."
-                            : detail.status === RECORD_STATUS.ACTIVE
-                            ? "Deactivate member →"
-                            : "Activate member →"}
+                        <button type="button" onClick={() => void handleToggleStatus(listMember)} disabled={togglingId === detail.id} className={["w-full text-left text-xs font-medium py-1 transition-colors disabled:opacity-40", detail.status === RECORD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>
+                          {togglingId === detail.id ? "Updating..." : detail.status === RECORD_STATUS.ACTIVE ? "Deactivate member →" : "Activate member →"}
                         </button>
                       </>
                     );

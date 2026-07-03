@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 
-import { PAGINATION, RECORD_STATUS } from "@/lib/constants";
+import { CARD_STATUS, PAGINATION, RECORD_STATUS } from "@/lib/constants";
 import { Card, Member, Wallet } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
 // ─── Output Types ──────────────────────────────────────────────────────────────
 
-// Summary shape - used by list, create, and update responses
 export interface MemberRecord {
   id: string;
   fullName: string;
@@ -19,8 +18,22 @@ export interface MemberRecord {
   updatedAt: string;
 }
 
-// Detail shape - used only by the single-resource GET endpoint
-// Richer wallet object + card object (which may be null)
+//  Individual readiness checks and the aggregate status
+export interface ReadinessChecks {
+  memberActive: boolean;
+  walletExists: boolean;
+  walletActive: boolean;
+  cardAssigned: boolean;
+  cardActive: boolean;
+  cardNotExpired: boolean;
+}
+
+export interface ReadinessStatus {
+  isReady: boolean;
+  checks: ReadinessChecks;
+}
+
+//  includes readiness field
 export interface MemberDetailRecord {
   id: string;
   fullName: string;
@@ -40,6 +53,7 @@ export interface MemberDetailRecord {
     status: string;
     expiresAt: string;
   } | null;
+  readiness: ReadinessStatus; // ← NEW
 }
 
 // ─── Input Types ──────────────────────────────────────────────────────────────
@@ -306,10 +320,12 @@ export async function updateMember(
 
   if (input.fullName !== undefined)
     updateFields.fullName = input.fullName.trim();
-  if (input.mobileNumber !== undefined)
+  if (input.mobileNumber !== undefined) {
     updateFields.mobileNumber = input.mobileNumber.trim() || null;
-  if (input.referenceDetails !== undefined)
+  }
+  if (input.referenceDetails !== undefined) {
     updateFields.referenceDetails = input.referenceDetails.trim() || null;
+  }
 
   const updated = await Member.findOneAndUpdate(
     { _id: targetId, isDeleted: false },
@@ -375,12 +391,44 @@ export async function updateMemberStatus(
   };
 }
 
+// ─── computeReadiness ─────────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function computeReadiness(
+  member: any,
+  wallet: any,
+  card: any,
+): ReadinessStatus {
+  const now = new Date();
+
+  const checks: ReadinessChecks = {
+    // Member must be Active to transact
+    memberActive: member.status === RECORD_STATUS.ACTIVE,
+
+    // Wallet must exist - guaranteed by the Day 16 transaction, but
+    // we check defensively for data integrity assurance
+    walletExists: wallet !== null,
+    walletActive: wallet?.status === RECORD_STATUS.ACTIVE,
+
+    cardAssigned: card !== null,
+
+    cardActive: card?.status === CARD_STATUS.ACTIVE,
+
+    cardNotExpired: card ? new Date(card.expiresAt) > now : false,
+  };
+
+  // isReady is true only when ALL six conditions are met simultaneously.
+  // A single false makes the entire readiness false.
+  const isReady = Object.values(checks).every(Boolean);
+
+  return { isReady, checks };
+}
+
+// ─── getMemberDetail ──────────────────────────────────────────────────────────
+
 export async function getMemberDetail(
   memberId: string,
 ): Promise<MemberDetailRecord> {
-  // ── Validate ID format ────────────────────────────────────────────────────
-  // Check before querying - passing a malformed string to Mongoose throws
-  // a CastError which surfaces as a confusing 500 instead of a clear 400.
   if (!mongoose.Types.ObjectId.isValid(memberId)) {
     throw new AppError("Invalid member ID.", 400);
   }
@@ -388,14 +436,16 @@ export async function getMemberDetail(
   const [member, wallet, card] = await Promise.all([
     Member.findOne({ _id: memberId, isDeleted: false }),
     Wallet.findOne({ memberId }),
-    // Card uses isDeleted: false - a soft-deleted card should not appear
-    // as the member's current card. A null result means no active card.
     Card.findOne({ memberId, isDeleted: false }),
   ]);
 
   if (!member) {
     throw new AppError("Member not found.", 404);
   }
+
+  // Compute readiness from the already-fetched documents.
+  // No additional queries. No stored state. Always accurate.
+  const readiness = computeReadiness(member, wallet, card);
 
   return {
     id: member._id.toString(),
@@ -406,8 +456,6 @@ export async function getMemberDetail(
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
 
-    // Wallet: should always exist for a valid member (Day 16 transaction),
-    // but we use the conditional shape to handle any edge cases safely.
     wallet: wallet
       ? {
           id: wallet._id.toString(),
@@ -416,8 +464,6 @@ export async function getMemberDetail(
         }
       : null,
 
-    // Card: null is correct and expected until a card is assigned.
-    // The frontend renders a "No card assigned yet" state for null.
     card: card
       ? {
           id: card._id.toString(),
@@ -426,5 +472,7 @@ export async function getMemberDetail(
           expiresAt: card.expiresAt.toISOString(),
         }
       : null,
+
+    readiness, // ← embedded with zero extra queries
   };
 }
