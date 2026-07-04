@@ -1,11 +1,4 @@
-// src/app/(protected)/members/_components/MembersContent.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// UPDATED ON DAY 19: Added Readiness section to the detail panel.
-//
-// The MemberDetailRecord type now includes a readiness field.
-// The READINESS_ITEMS array drives the check list display.
-// No other changes from Day 18.
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 "use client";
 
@@ -25,6 +18,7 @@ import type { PaginationMeta } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+
 interface MemberRecord {
   id: string;
   fullName: string;
@@ -33,8 +27,16 @@ interface MemberRecord {
   status: string;
   walletId: string;
   walletBalance: number;
+  isReady: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+
+interface MembersStats {
+  total: number;
+  active: number;
+  inactive: number;
 }
 
 interface ReadinessChecks {
@@ -59,17 +61,8 @@ interface MemberDetailRecord {
   status: string;
   createdAt: string;
   updatedAt: string;
-  wallet: {
-    id: string;
-    currentBalance: number;
-    status: string;
-  } | null;
-  card: {
-    id: string;
-    cardNumber: string;
-    status: string;
-    expiresAt: string;
-  } | null;
+  wallet: { id: string; currentBalance: number; status: string } | null;
+  card: { id: string; cardNumber: string; status: string; expiresAt: string } | null;
   readiness: ReadinessStatus;
 }
 
@@ -88,9 +81,7 @@ interface EditFormData {
 type CreateFormErrors = Partial<Record<keyof CreateFormData, string>>;
 type EditFormErrors = Partial<Record<keyof EditFormData, string>>;
 
-// ─── Readiness Check Item Config - NEW ON DAY 19 ─────────────────────────────
-// Data-driven: adding a new check means adding one object here.
-// The rendering loop never changes.
+// ─── Readiness Check Config  ────────────────────────────────────
 
 interface ReadinessCheckItem {
   key: keyof ReadinessChecks;
@@ -99,36 +90,12 @@ interface ReadinessCheckItem {
 }
 
 const READINESS_ITEMS: ReadinessCheckItem[] = [
-  {
-    key: "memberActive",
-    label: "Member is active",
-    failureHint: "Reactivate this member account",
-  },
-  {
-    key: "walletExists",
-    label: "Wallet exists",
-    failureHint: "Contact system administrator",
-  },
-  {
-    key: "walletActive",
-    label: "Wallet is active",
-    failureHint: "Activate the wallet in the Wallets module",
-  },
-  {
-    key: "cardAssigned",
-    label: "Card assigned",
-    failureHint: "Assign a card in the Cards module",
-  },
-  {
-    key: "cardActive",
-    label: "Card is active",
-    failureHint: "Activate the card in the Cards module",
-  },
-  {
-    key: "cardNotExpired",
-    label: "Card is not expired",
-    failureHint: "Issue a replacement card",
-  },
+  { key: "memberActive",   label: "Member is active",     failureHint: "Reactivate this member account" },
+  { key: "walletExists",   label: "Wallet exists",        failureHint: "Contact system administrator" },
+  { key: "walletActive",   label: "Wallet is active",     failureHint: "Activate the wallet in the Wallets module" },
+  { key: "cardAssigned",   label: "Card assigned",        failureHint: "Assign a card in the Cards module" },
+  { key: "cardActive",     label: "Card is active",       failureHint: "Activate the card in the Cards module" },
+  { key: "cardNotExpired", label: "Card is not expired",  failureHint: "Issue a replacement card" },
 ];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -174,13 +141,8 @@ function formatCurrency(amount: number): string {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-const INITIAL_CREATE_DATA: CreateFormData = {
-  fullName: "", mobileNumber: "", referenceDetails: "",
-};
-
-const INITIAL_META: PaginationMeta = {
-  page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0,
-};
+const INITIAL_CREATE_DATA: CreateFormData = { fullName: "", mobileNumber: "", referenceDetails: "" };
+const INITIAL_META: PaginationMeta = { page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -220,6 +182,9 @@ export default function MembersContent() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
 
+  
+  const [stats, setStats] = useState<MembersStats | null>(null);
+
   // ── Debounce ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -228,6 +193,20 @@ export default function MembersContent() {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // ── Fetch Stats - NEW ON DAY 20 ───────────────────────────────────────────
+  const fetchStats = useCallback(async (): Promise<void> => {
+    try {
+      const authHeader = getAuthorizationHeader();
+      const response = await fetch("/api/members/stats", {
+        headers: authHeader ? { Authorization: authHeader } : {},
+      });
+      const result = await response.json();
+      if (result.success) setStats(result.data as MembersStats);
+    } catch {
+      // Stats failing is non-critical - the page still works without them
+    }
+  }, []);
 
   // ── Fetch List ────────────────────────────────────────────────────────────
   const fetchMembers = useCallback(
@@ -254,6 +233,8 @@ export default function MembersContent() {
     []
   );
 
+  // Fetch stats once on mount, fetch list whenever filters change
+  useEffect(() => { void fetchStats(); }, [fetchStats]);
   useEffect(() => {
     void fetchMembers(currentPage, debouncedSearch, statusFilter);
   }, [currentPage, debouncedSearch, statusFilter, fetchMembers]);
@@ -304,7 +285,7 @@ export default function MembersContent() {
     setSelectedMemberId((prev) => (prev === member.id ? null : member.id));
   }
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Create Handlers ───────────────────────────────────────────────────────
   function handleCreateChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void {
     const { name, value } = e.target;
     setCreateData((prev) => ({ ...prev, [name]: value }));
@@ -337,10 +318,12 @@ export default function MembersContent() {
       closeAllPanels();
       handleClearFilters();
       void fetchMembers(1, "", "");
+      void fetchStats(); // refresh counts after new enrolment
     } catch { setCreateRequestError("Unable to reach the server."); }
     finally { setIsCreating(false); }
   }
 
+  // ── Edit Handlers ─────────────────────────────────────────────────────────
   function handleOpenEdit(member: MemberRecord): void {
     closeAllPanels();
     setEditingMember(member);
@@ -385,6 +368,7 @@ export default function MembersContent() {
     finally { setIsEditing(false); }
   }
 
+  // ── Toggle Handler ────────────────────────────────────────────────────────
   async function handleToggleStatus(member: MemberRecord): Promise<void> {
     setTogglingId(member.id);
     try {
@@ -398,6 +382,7 @@ export default function MembersContent() {
       const updated = result.data as MemberRecord;
       setMemberList((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       if (selectedMemberId === updated.id) void fetchDetail(updated.id);
+      void fetchStats(); // refresh active/inactive counts after status change
     } catch { setListError("Unable to reach the server."); }
     finally { setTogglingId(null); }
   }
@@ -418,6 +403,22 @@ export default function MembersContent() {
           ) : undefined
         }
       />
+
+     
+      {stats && (
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total Enrolled", value: stats.total,    color: "text-slate-700" },
+            { label: "Active",         value: stats.active,   color: "text-green-700" },
+            { label: "Inactive",       value: stats.inactive, color: "text-slate-400" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-white rounded-2xl border border-slate-200 px-5 py-4">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+              <p className={`text-2xl font-bold ${color}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Search + Filter */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -489,13 +490,11 @@ export default function MembersContent() {
         </SectionCard>
       )}
 
-      {/* Table + Detail Panel Layout */}
+
       <div
         className={selectedMemberId ? "grid gap-4 items-start" : ""}
         style={selectedMemberId ? { gridTemplateColumns: "1fr 320px" } : {}}
       >
-
-        {/* Members Table */}
         <SectionCard
           title="All Members"
           noPadding
@@ -538,10 +537,10 @@ export default function MembersContent() {
           )}
           {!isLoading && !listError && memberList.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse min-w-[640px]">
+              <table className="w-full border-collapse min-w-[760px]">
                 <thead>
                   <tr>
-                    {["Member", "Mobile", "Wallet Balance", "Status", "Enrolled", "Actions"].map((h) => (
+                    {["Member", "Mobile", "Balance", "Readiness", "Status", "Enrolled", "Actions"].map((h) => (
                       <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -557,11 +556,36 @@ export default function MembersContent() {
                       >
                         <td className="px-6 py-4">
                           <p className="text-sm font-medium text-slate-800 leading-tight">{member.fullName}</p>
-                          {member.referenceDetails && <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{member.referenceDetails}</p>}
+                          {member.referenceDetails && (
+                            <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{member.referenceDetails}</p>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">{member.mobileNumber ?? <span className="text-slate-300">—</span>}</td>
-                        <td className="px-6 py-4"><span className="text-sm font-semibold text-slate-700">{formatCurrency(member.walletBalance)}</span></td>
-                        <td className="px-6 py-4"><Badge label={member.status} variant={getStatusVariant(member.status)} /></td>
+                        <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
+                          {member.mobileNumber ?? <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-semibold text-slate-700">{formatCurrency(member.walletBalance)}</span>
+                        </td>
+
+                        {/* Readiness column - NEW ON DAY 20 */}
+                        <td className="px-6 py-4">
+                          <span className={[
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+                            member.isReady
+                              ? "bg-green-100 text-green-700"
+                              : "bg-amber-100 text-amber-700",
+                          ].join(" ")}>
+                            <span className={[
+                              "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                              member.isReady ? "bg-green-500" : "bg-amber-500",
+                            ].join(" ")} />
+                            {member.isReady ? "Ready" : "Not ready"}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <Badge label={member.status} variant={getStatusVariant(member.status)} />
+                        </td>
                         <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(member.createdAt)}</td>
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-2">
@@ -595,14 +619,13 @@ export default function MembersContent() {
           )}
         </SectionCard>
 
-        {/* Detail Panel */}
+        {/* Detail Panel (Days 18-19, unchanged) */}
         {selectedMemberId && (
           <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-700">Member Details</h3>
               <button type="button" onClick={() => setSelectedMemberId(null)} className="text-slate-400 hover:text-slate-600 transition-colors text-lg leading-none" aria-label="Close">×</button>
             </div>
-
             {isDetailLoading && (
               <div className="flex items-center justify-center py-12 gap-2">
                 <span className="flex gap-1">
@@ -612,17 +635,14 @@ export default function MembersContent() {
                 </span>
               </div>
             )}
-
             {!isDetailLoading && detailError && (
               <div className="px-5 py-6 flex flex-col items-center gap-3">
                 <p className="text-sm text-red-500 text-center">{detailError}</p>
                 <Button variant="secondary" size="sm" onClick={() => void fetchDetail(selectedMemberId)}>Retry</Button>
               </div>
             )}
-
             {!isDetailLoading && !detailError && detail && (
               <div className="px-5 py-5 flex flex-col gap-5">
-
                 {/* Identity */}
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-base flex-shrink-0">
@@ -634,9 +654,7 @@ export default function MembersContent() {
                     {detail.referenceDetails && <p className="text-xs text-slate-400 mt-0.5 break-words">{detail.referenceDetails}</p>}
                   </div>
                 </div>
-
                 <Badge label={detail.status} variant={getStatusVariant(detail.status)} />
-
                 <div className="border-t border-slate-100" />
 
                 {/* Wallet */}
@@ -660,11 +678,9 @@ export default function MembersContent() {
                   ) : (
                     <div className="bg-amber-50 rounded-xl px-4 py-3">
                       <p className="text-xs text-amber-700">No wallet found.</p>
-                      <p className="text-xs text-amber-500 mt-0.5">Contact system administrator.</p>
                     </div>
                   )}
                 </div>
-
                 <div className="border-t border-slate-100" />
 
                 {/* Card */}
@@ -692,61 +708,33 @@ export default function MembersContent() {
                     </div>
                   )}
                 </div>
-
                 <div className="border-t border-slate-100" />
 
-                {/* Readiness Section - NEW ON DAY 19 */}
+                {/* Readiness */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Billing Readiness
-                    </p>
-                    {/* Summary badge */}
-                    <span className={[
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold",
-                      detail.readiness.isReady
-                        ? "bg-green-100 text-green-700"
-                        : "bg-amber-100 text-amber-700",
-                    ].join(" ")}>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Billing Readiness</p>
+                    <span className={["inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold", detail.readiness.isReady ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"].join(" ")}>
                       {detail.readiness.isReady ? "✓ Ready" : "⚠ Not ready"}
                     </span>
                   </div>
-
-                  {/* Individual checks - data-driven from READINESS_ITEMS */}
                   <div className="flex flex-col gap-2">
                     {READINESS_ITEMS.map(({ key, label, failureHint }) => {
                       const passed = detail.readiness.checks[key];
                       return (
                         <div key={key} className="flex items-start gap-2">
-                          {/* Check icon */}
-                          <span className={[
-                            "flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold mt-0.5",
-                            passed
-                              ? "bg-green-100 text-green-600"
-                              : "bg-red-100 text-red-500",
-                          ].join(" ")}>
+                          <span className={["flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold mt-0.5", passed ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"].join(" ")}>
                             {passed ? "✓" : "✗"}
                           </span>
                           <div className="min-w-0">
-                            <p className={[
-                              "text-xs font-medium",
-                              passed ? "text-slate-600" : "text-slate-500",
-                            ].join(" ")}>
-                              {label}
-                            </p>
-                            {/* Only show hint for failed checks */}
-                            {!passed && (
-                              <p className="text-xs text-slate-400 mt-0.5">
-                                {failureHint}
-                              </p>
-                            )}
+                            <p className={["text-xs font-medium", passed ? "text-slate-600" : "text-slate-500"].join(" ")}>{label}</p>
+                            {!passed && <p className="text-xs text-slate-400 mt-0.5">{failureHint}</p>}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-
                 <div className="border-t border-slate-100" />
 
                 {/* Dates */}
@@ -783,7 +771,6 @@ export default function MembersContent() {
                     );
                   })()}
                 </div>
-
               </div>
             )}
           </aside>

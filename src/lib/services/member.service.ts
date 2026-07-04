@@ -14,11 +14,11 @@ export interface MemberRecord {
   status: string;
   walletId: string;
   walletBalance: number;
+  isReady: boolean; // ← NEW: computed from member + wallet + card
   createdAt: string;
   updatedAt: string;
 }
 
-//  Individual readiness checks and the aggregate status
 export interface ReadinessChecks {
   memberActive: boolean;
   walletExists: boolean;
@@ -33,7 +33,6 @@ export interface ReadinessStatus {
   checks: ReadinessChecks;
 }
 
-//  includes readiness field
 export interface MemberDetailRecord {
   id: string;
   fullName: string;
@@ -53,7 +52,14 @@ export interface MemberDetailRecord {
     status: string;
     expiresAt: string;
   } | null;
-  readiness: ReadinessStatus; // ← NEW
+  readiness: ReadinessStatus;
+}
+
+// NEW ON DAY 20
+export interface MembersStats {
+  total: number;
+  active: number;
+  inactive: number;
 }
 
 // ─── Input Types ──────────────────────────────────────────────────────────────
@@ -80,6 +86,28 @@ interface UpdateMemberInput {
   fullName?: string;
   mobileNumber?: string;
   referenceDetails?: string;
+}
+
+// ─── computeReadiness ─────────────────────────────────────────────────────────
+
+function computeReadiness(
+  member: any,
+  wallet: any,
+  card: any,
+): ReadinessStatus {
+  const now = new Date();
+
+  const checks: ReadinessChecks = {
+    memberActive: member.status === RECORD_STATUS.ACTIVE,
+    walletExists: wallet !== null,
+    walletActive: !!wallet && wallet.status === RECORD_STATUS.ACTIVE,
+    cardAssigned: card !== null,
+    cardActive: !!card && card.status === CARD_STATUS.ACTIVE,
+    cardNotExpired: card ? new Date(card.expiresAt) > now : false,
+  };
+
+  const isReady = Object.values(checks).every(Boolean);
+  return { isReady, checks };
 }
 
 // ─── validateCreateMemberInput ─────────────────────────────────────────────────
@@ -143,17 +171,29 @@ export async function listMembers(
 
   if (input.status) filter.status = input.status;
 
+  // Query 1+2: members and total count in parallel
   const [members, total] = await Promise.all([
     Member.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
     Member.countDocuments(filter),
   ]);
 
   const memberIds = members.map((m) => m._id);
-  const wallets = await Wallet.find({ memberId: { $in: memberIds } });
+
+  // Query 3+4: wallets AND cards in one Promise.all - three-way enrichment
+  const [wallets, cards] = await Promise.all([
+    Wallet.find({ memberId: { $in: memberIds } }),
+    Card.find({ memberId: { $in: memberIds }, isDeleted: false }),
+  ]);
+
+  // Build lookup Maps for O(1) access when combining the three datasets
   const walletMap = new Map(wallets.map((w) => [w.memberId.toString(), w]));
+  const cardMap = new Map(cards.map((c) => [c.memberId.toString(), c]));
 
   const memberList: MemberRecord[] = members.map((m) => {
-    const wallet = walletMap.get(m._id.toString());
+    const wallet = walletMap.get(m._id.toString()) ?? null;
+    const card = cardMap.get(m._id.toString()) ?? null;
+    const { isReady } = computeReadiness(m, wallet, card);
+
     return {
       id: m._id.toString(),
       fullName: m.fullName,
@@ -162,12 +202,28 @@ export async function listMembers(
       status: m.status,
       walletId: wallet?._id.toString() ?? "",
       walletBalance: wallet?.currentBalance ?? 0,
+      isReady, // ← computed from all three documents
       createdAt: m.createdAt.toISOString(),
       updatedAt: m.updatedAt.toISOString(),
     };
   });
 
   return { memberList, total };
+}
+
+// ─── getMembersStats ──────────────────────────────────────────────────────────
+
+export async function getMembersStats(): Promise<MembersStats> {
+  const [total, active] = await Promise.all([
+    Member.countDocuments({ isDeleted: false }),
+    Member.countDocuments({ isDeleted: false, status: RECORD_STATUS.ACTIVE }),
+  ]);
+
+  return {
+    total,
+    active,
+    inactive: total - active,
+  };
 }
 
 // ─── createMember ─────────────────────────────────────────────────────────────
@@ -233,6 +289,7 @@ export async function createMember(
       status: member.status,
       walletId: wallet._id.toString(),
       walletBalance: wallet.currentBalance,
+      isReady: false, // new members never have a card yet
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
     };
@@ -335,7 +392,13 @@ export async function updateMember(
 
   if (!updated) throw new AppError("Member not found.", 404);
 
-  const wallet = await Wallet.findOne({ memberId: updated._id });
+  // Fetch wallet and card to return the full enriched record
+  const [wallet, card] = await Promise.all([
+    Wallet.findOne({ memberId: updated._id }),
+    Card.findOne({ memberId: updated._id, isDeleted: false }),
+  ]);
+
+  const { isReady } = computeReadiness(updated, wallet ?? null, card ?? null);
 
   return {
     id: updated._id.toString(),
@@ -345,6 +408,7 @@ export async function updateMember(
     status: updated.status,
     walletId: wallet?._id.toString() ?? "",
     walletBalance: wallet?.currentBalance ?? 0,
+    isReady,
     createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
   };
@@ -376,7 +440,12 @@ export async function updateMemberStatus(
 
   if (!updated) throw new AppError("Member not found.", 404);
 
-  const wallet = await Wallet.findOne({ memberId: updated._id });
+  const [wallet, card] = await Promise.all([
+    Wallet.findOne({ memberId: updated._id }),
+    Card.findOne({ memberId: updated._id, isDeleted: false }),
+  ]);
+
+  const { isReady } = computeReadiness(updated, wallet ?? null, card ?? null);
 
   return {
     id: updated._id.toString(),
@@ -386,42 +455,10 @@ export async function updateMemberStatus(
     status: updated.status,
     walletId: wallet?._id.toString() ?? "",
     walletBalance: wallet?.currentBalance ?? 0,
+    isReady,
     createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
   };
-}
-
-// ─── computeReadiness ─────────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function computeReadiness(
-  member: any,
-  wallet: any,
-  card: any,
-): ReadinessStatus {
-  const now = new Date();
-
-  const checks: ReadinessChecks = {
-    // Member must be Active to transact
-    memberActive: member.status === RECORD_STATUS.ACTIVE,
-
-    // Wallet must exist - guaranteed by the Day 16 transaction, but
-    // we check defensively for data integrity assurance
-    walletExists: wallet !== null,
-    walletActive: wallet?.status === RECORD_STATUS.ACTIVE,
-
-    cardAssigned: card !== null,
-
-    cardActive: card?.status === CARD_STATUS.ACTIVE,
-
-    cardNotExpired: card ? new Date(card.expiresAt) > now : false,
-  };
-
-  // isReady is true only when ALL six conditions are met simultaneously.
-  // A single false makes the entire readiness false.
-  const isReady = Object.values(checks).every(Boolean);
-
-  return { isReady, checks };
 }
 
 // ─── getMemberDetail ──────────────────────────────────────────────────────────
@@ -443,8 +480,6 @@ export async function getMemberDetail(
     throw new AppError("Member not found.", 404);
   }
 
-  // Compute readiness from the already-fetched documents.
-  // No additional queries. No stored state. Always accurate.
   const readiness = computeReadiness(member, wallet, card);
 
   return {
@@ -455,7 +490,6 @@ export async function getMemberDetail(
     status: member.status,
     createdAt: member.createdAt.toISOString(),
     updatedAt: member.updatedAt.toISOString(),
-
     wallet: wallet
       ? {
           id: wallet._id.toString(),
@@ -463,7 +497,6 @@ export async function getMemberDetail(
           status: wallet.status,
         }
       : null,
-
     card: card
       ? {
           id: card._id.toString(),
@@ -472,7 +505,6 @@ export async function getMemberDetail(
           expiresAt: card.expiresAt.toISOString(),
         }
       : null,
-
-    readiness, // ← embedded with zero extra queries
+    readiness,
   };
 }
