@@ -1,14 +1,4 @@
 import type { Metadata } from "next";
-import ModulePlaceholder from "@/components/layout/ModulePlaceholder";
-
+import StockContent from "./_components/StockContent";
 export const metadata: Metadata = { title: "Stock" };
-
-export default function StockPage() {
-  return (
-    <ModulePlaceholder
-      title="Stock"
-      description="Track product inventory levels and record stock movements."
-      comingOn="Day 32"
-    />
-  );
-}
+export default function StockPage() { return <StockContent />; }

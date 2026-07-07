@@ -1,13 +1,16 @@
+// src/lib/models/Bill.model.ts
+
 import mongoose, { Document, Schema } from "mongoose";
+
 import { BILL_STATUS } from "@/lib/constants";
 
 interface IBillItem {
   productId: mongoose.Types.ObjectId;
   productName: string;
-  productCode: string;
+  productCode?: string; // optional - not all product setups include a code
   unitPrice: number;
   quantity: number;
-  lineTotal: number;
+  subtotal: number; // renamed from lineTotal to match billing service
 }
 
 const billItemSchema = new Schema<IBillItem>(
@@ -17,39 +20,32 @@ const billItemSchema = new Schema<IBillItem>(
       ref: "Product",
       required: true,
     },
-
     productName: {
       type: String,
       required: true,
     },
-
     productCode: {
       type: String,
-      required: true,
+      required: false, // optional - populated only when products have a code
+      default: null,
     },
-
     unitPrice: {
       type: Number,
       required: true,
       min: 0,
     },
-
     quantity: {
       type: Number,
       required: true,
       min: 1,
     },
-
-    lineTotal: {
+    subtotal: {
       type: Number,
       required: true,
       min: 0,
     },
   },
-  {
-    _id: true,
-    versionKey: false,
-  },
+  { _id: true, versionKey: false },
 );
 
 export interface IBill extends Document {
@@ -154,12 +150,32 @@ const billSchema = new Schema<IBill>(
   },
 );
 
+billSchema.pre("save", async function () {
+  if (!this.isNew) return;
+
+  const date = new Date();
+  const datePart =
+    `${date.getFullYear()}` +
+    `${String(date.getMonth() + 1).padStart(2, "0")}` +
+    `${String(date.getDate()).padStart(2, "0")}`;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const random = Math.floor(Math.random() * 9000 + 1000).toString();
+    const candidate = `BILL-${datePart}-${random}`;
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    const existing = await Bill.findOne({ billNumber: candidate });
+    if (!existing) {
+      this.billNumber = candidate;
+      return;
+    }
+  }
+
+  throw new Error("Could not generate a unique bill number. Please retry.");
+});
+
 billSchema.index({ billNumber: 1 }, { unique: true });
-
 billSchema.index({ memberId: 1, createdAt: -1 });
-
 billSchema.index({ cashierId: 1, createdAt: -1 });
-
 billSchema.index({ createdAt: -1 });
 
 export const Bill =

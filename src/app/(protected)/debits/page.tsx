@@ -1,14 +1,5 @@
 import type { Metadata } from "next";
-import ModulePlaceholder from "@/components/layout/ModulePlaceholder";
+import DebitsContent from "./_components/DebitsContent";
 
 export const metadata: Metadata = { title: "Debits" };
-
-export default function DebitsPage() {
-  return (
-    <ModulePlaceholder
-      title="Debits"
-      description="Process manual wallet deductions with justification and audit trail."
-      comingOn="Day 28"
-    />
-  );
-}
+export default function DebitsPage() { return <DebitsContent />; }

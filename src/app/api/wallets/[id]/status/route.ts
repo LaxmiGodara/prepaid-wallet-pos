@@ -6,7 +6,7 @@ import { validateRuntimeConfig } from "@/lib/config";
 import { STAFF_ROLES } from "@/lib/constants";
 import { connectDB } from "@/lib/db";
 import { handleApiError } from "@/lib/error-handler";
-import { updateCardStatus } from "@/lib/services/card.service";
+import { updateWalletStatus } from "@/lib/services/wallet.service";
 
 export async function PATCH(
   request: NextRequest,
@@ -19,11 +19,11 @@ export async function PATCH(
     requireRole(actor, [STAFF_ROLES.SUPER_ADMIN, STAFF_ROLES.ADMIN]);
 
     const { id } = await params;
-    const updated = await updateCardStatus(id, actor.staffId);
+    const updated = await updateWalletStatus(id, actor.staffId);
 
     return NextResponse.json(
       buildSuccessResponse(
-        `Card ${updated.status === "Active" ? "activated" : "deactivated"} successfully.`,
+        `Wallet ${updated.status === "Active" ? "activated" : "deactivated"} successfully.`,
         updated
       ),
       { status: 200 }
