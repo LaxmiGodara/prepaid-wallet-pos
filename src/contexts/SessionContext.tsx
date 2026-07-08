@@ -41,7 +41,9 @@ export function SessionProvider({ children }: SessionProviderProps) {
     }
   }, [verifiedSession]);
 
-  if (isVerifying || !localSession) {
+  const activeSession = localSession ?? verifiedSession;
+
+  if (isVerifying || !activeSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex items-center gap-3">
@@ -56,18 +58,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
     );
   }
 
-
-  const activeSession = localSession;
+  const readySession = activeSession;
 
   function hasRole(allowedRoles: string[]): boolean {
-    return allowedRoles.includes(activeSession.staff.role);
+    return allowedRoles.includes(readySession.staff.role);
   }
 
 
   function updateSession(updates: Partial<SessionData["staff"]>): void {
     const next: SessionData = {
-      token: activeSession.token,
-      staff: { ...activeSession.staff, ...updates },
+      token: readySession.token,
+      staff: { ...readySession.staff, ...updates },
     };
     saveSession(next);
     setLocalSession(next);
@@ -82,7 +83,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   return (
     <SessionContext.Provider
       value={{
-        session: activeSession,
+        session: readySession,
         logout,
         hasRole,
         updateSession,

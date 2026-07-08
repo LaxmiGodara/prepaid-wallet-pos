@@ -161,6 +161,33 @@ function computeReadiness(
 // Called when the cashier enters a card number.
 // Returns full member + wallet + readiness before items are added.
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildCardNumberSearchPattern(cardNumber: string): RegExp {
+  const normalized = cardNumber.trim().replace(/[\s-]+/g, "");
+  const wildcard = normalized.split("").map(escapeRegExp).join("[\\s-]*");
+  return new RegExp(wildcard, "i");
+}
+
+async function generateBillNumber(): Promise<string> {
+  const date = new Date();
+  const datePart =
+    `${date.getFullYear()}` +
+    `${String(date.getMonth() + 1).padStart(2, "0")}` +
+    `${String(date.getDate()).padStart(2, "0")}`;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const random = Math.floor(Math.random() * 9000 + 1000).toString();
+    const candidate = `BILL-${datePart}-${random}`;
+    const existing = await Bill.findOne({ billNumber: candidate });
+    if (!existing) return candidate;
+  }
+
+  throw new AppError("Could not generate a unique bill number. Please retry.", 500);
+}
+
 export async function lookupMemberByCard(
   cardNumber: string
 ): Promise<BillLookupResult> {
@@ -169,9 +196,8 @@ export async function lookupMemberByCard(
   }
 
   const card = await Card.findOne({
-    cardNumber: cardNumber.trim(),
-    isDeleted: false,
-  });
+    cardNumber: buildCardNumberSearchPattern(cardNumber),
+  }).sort({ createdAt: -1 });
   if (!card) throw new AppError("Card not found.", 404);
 
   const [member, wallet] = await Promise.all([
@@ -238,9 +264,8 @@ export async function createBill(
   // ── Step 2: Find Card, Member, Wallet ──────────────────────────────────────
 
   const card = await Card.findOne({
-    cardNumber: input.cardNumber.trim(),
-    isDeleted: false,
-  });
+    cardNumber: buildCardNumberSearchPattern(input.cardNumber),
+  }).sort({ createdAt: -1 });
   if (!card) throw new AppError("Card not found.", 404);
 
   const [member, wallet] = await Promise.all([
@@ -350,6 +375,7 @@ export async function createBill(
 
   const actorOid  = new mongoose.Types.ObjectId(actorId);
   const memberOid = member._id as mongoose.Types.ObjectId;
+  const billNumber = await generateBillNumber();
 
   // ── Step 7: The Atomic Transaction ────────────────────────────────────────
   // All five document types are written inside one session.
@@ -366,6 +392,7 @@ export async function createBill(
     const [bill] = await Bill.create(
       [
         {
+          billNumber,
           memberId:            memberOid,
           walletId:            wallet._id,
           cardId:              card._id,
@@ -379,7 +406,7 @@ export async function createBill(
           createdBy:           actorOid,
         },
       ],
-      { session }
+      { session, ordered: true }
     );
 
     // ── 7b. Deduct wallet with atomic balance guard ───────────────────────
@@ -433,6 +460,7 @@ export async function createBill(
         movementType:    STOCK_MOVEMENT_TYPES.BILLING_DEDUCTION,
         quantityChanged: item.quantity,
         quantityBefore:  updatedStock.currentQty + item.quantity, // ← before deduction
+        quantityAfter:   updatedStock.currentQty,
         notes:           `Bill ${bill._id.toString().slice(-8).toUpperCase()}`,
         createdBy:       actorOid,
       });
@@ -455,11 +483,11 @@ export async function createBill(
           createdBy:    actorOid,
         },
       ],
-      { session }
+      { session, ordered: true }
     );
 
     // ── 7e. Create one StockMovement per line item ────────────────────────
-    await StockMovement.create(stockMovementDocs, { session });
+    await StockMovement.create(stockMovementDocs, { session, ordered: true });
 
     // ── Step 8: COMMIT ─────────────────────────────────────────────────────
     // Only at this exact point do all five document types become permanently

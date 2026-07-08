@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-import { PAGINATION, RECORD_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
-import { Debit, Member, Transaction, Wallet } from "@/lib/models";
+import { CARD_STATUS, PAGINATION, PAYMENT_MODES, RECORD_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
+import { Card, Debit, Member, Transaction, Wallet } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
 export interface DebitRecord {
@@ -11,6 +11,7 @@ export interface DebitRecord {
   walletId:            string;
   amount:              number;
   reason:              string;
+  paymentMode:         string;
   walletBalanceBefore?: number;
   walletBalanceAfter?:  number;
   createdAt:           string;
@@ -20,6 +21,8 @@ interface CreateDebitInput {
   memberId?: string;
   amount?:   number | string;
   reason?:   string;
+  paymentMode?: string;
+  notes?: string;
 }
 
 interface ListDebitsInput {
@@ -51,18 +54,27 @@ export async function listDebits(
   const memberIds = debits.map((d) => d.memberId);
   const members   = await Member.find({ _id: { $in: memberIds } });
   const memberMap = new Map(members.map((m) => [m._id.toString(), m.fullName]));
+  const debitIds = debits.map((d) => d._id);
+  const transactions = await Transaction.find({ debitId: { $in: debitIds } });
+  const transactionMap = new Map(transactions.map((t) => [t.debitId?.toString(), t]));
 
-  // Transaction model has no referenceId - cannot join back from list.
   return {
-    debitList: debits.map((d) => ({
-      id:         d._id.toString(),
-      memberId:   d.memberId.toString(),
-      memberName: memberMap.get(d.memberId.toString()) ?? "Unknown",
-      walletId:   d.walletId.toString(),
-      amount:     d.amount,
-      reason:     d.reason,
-      createdAt:  d.createdAt.toISOString(),
-    })),
+    debitList: debits.map((d) => {
+      const transaction = transactionMap.get(d._id.toString());
+
+      return {
+        id:         d._id.toString(),
+        memberId:   d.memberId.toString(),
+        memberName: memberMap.get(d.memberId.toString()) ?? "Unknown",
+        walletId:   d.walletId.toString(),
+        amount:     d.amount,
+        reason:     d.reason,
+        paymentMode: d.paymentMode,
+        walletBalanceBefore: transaction?.balanceBefore,
+        walletBalanceAfter:  transaction?.balanceAfter,
+        createdAt:  d.createdAt.toISOString(),
+      };
+    }),
     total,
   };
 }
@@ -89,6 +101,17 @@ export async function createDebit(
   const wallet = await Wallet.findOne({ memberId: input.memberId });
   if (!wallet) throw new AppError("Wallet not found.", 404);
   if (wallet.status !== RECORD_STATUS.ACTIVE) throw new AppError("Wallet is not active.", 400);
+
+  const activeCard = await Card.findOne({
+    memberId: input.memberId,
+    status: CARD_STATUS.ACTIVE,
+    expiresAt: { $gt: new Date() },
+  });
+  if (!activeCard) {
+    throw new AppError("Member must have an active card before debit.", 400, [
+      { field: "memberId", message: "Assign an active card to this member first." },
+    ]);
+  }
 
   if (wallet.currentBalance < amount) {
     throw new AppError(
@@ -124,11 +147,14 @@ export async function createDebit(
       [{
         memberId:  memberOid,
         walletId:  wallet._id,
+        cardId:    activeCard._id,
         amount,
         reason:    input.reason!.trim(),
+        paymentMode: input.paymentMode ?? PAYMENT_MODES.CASH,
+        notes:     input.notes?.trim() ?? "",
         createdBy: actorOid,
       }],
-      { session }
+      { session, ordered: true }
     );
 
     // Transaction model: balanceBefore/balanceAfter (not walletBalance...)
@@ -141,9 +167,10 @@ export async function createDebit(
         amount,
         balanceBefore,  // ← was walletBalanceBefore
         balanceAfter,   // ← was walletBalanceAfter
+        debitId:      debit._id,
         createdBy:    actorOid,
       }],
-      { session }
+      { session, ordered: true }
     );
 
     await session.commitTransaction();
@@ -155,6 +182,7 @@ export async function createDebit(
       walletId:            wallet._id.toString(),
       amount,
       reason:              debit.reason,
+      paymentMode:         debit.paymentMode,
       walletBalanceBefore: balanceBefore,
       walletBalanceAfter:  balanceAfter,
       createdAt:           debit.createdAt.toISOString(),

@@ -46,7 +46,7 @@ function validateProductInput(
     else if (name.length > 120) errors.push({ field: "productName", message: "Max 120 characters." });
   }
 
-  if (!isUpdate || input.productCode !== undefined) {
+  if (isUpdate && input.productCode !== undefined) {
     const code = input.productCode?.trim() ?? "";
     if (!code) errors.push({ field: "productCode", message: "Product code is required." });
   }
@@ -69,6 +69,23 @@ function validateProductInput(
   }
 
   return errors;
+}
+
+function getProductCodePrefix(productName: string): string {
+  const letters = productName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return (letters || "PRD").slice(0, 3).padEnd(3, "X");
+}
+
+async function generateProductCode(productName: string): Promise<string> {
+  const prefix = getProductCodePrefix(productName);
+  const pattern = new RegExp(`^PRD-${prefix}-\\d+$`);
+  const products = await Product.find({ productCode: pattern }).select("productCode");
+  const maxNumber = products.reduce((max, product) => {
+    const suffix = Number(product.productCode.split("-").at(-1));
+    return Number.isFinite(suffix) ? Math.max(max, suffix) : max;
+  }, 0);
+
+  return `PRD-${prefix}-${String(maxNumber + 1).padStart(2, "0")}`;
 }
 
 function toProductRecord(doc: InstanceType<typeof Product>): ProductRecord {
@@ -119,7 +136,7 @@ export async function createProduct(
   if (errors.length > 0) throw new AppError("Validation failed.", 400, errors);
 
   const productName  = input.productName!.trim();
-  const productCode  = input.productCode!.trim();
+  const productCode  = await generateProductCode(productName);
   const sellingPrice = Number(input.sellingPrice);
   const unit         = input.unit!.trim();
   const actorOid     = new mongoose.Types.ObjectId(actorId);
@@ -130,13 +147,13 @@ export async function createProduct(
 
     const [product] = await Product.create(
       [{ productName, productCode, sellingPrice, unit, status: RECORD_STATUS.ACTIVE, createdBy: actorOid, isDeleted: false }],
-      { session }
+      { session, ordered: true }
     );
 
     // Stock field is currentQty (not currentQuantity) - matches Stock model
     await Stock.create(
-      [{ productId: product._id, currentQty: 0 }],
-      { session }
+      [{ productId: product._id, currentQty: 0, createdBy: actorOid }],
+      { session, ordered: true }
     );
 
     await session.commitTransaction();

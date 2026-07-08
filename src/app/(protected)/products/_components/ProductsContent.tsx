@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Input, PageHeader, SectionCard, getStatusVariant } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
-import { PAGINATION, RECORD_STATUS } from "@/lib/constants";
+import { PAGINATION, PRODUCT_UNITS, RECORD_STATUS } from "@/lib/constants";
 import type { PaginationMeta } from "@/types";
 
 interface ProductRecord {
@@ -29,9 +29,23 @@ function validateForm(d: FormData, isEdit = false): FormErrors {
   return e;
 }
 
+function buildProductCodePreview(productName: string, products: ProductRecord[]): string {
+  const letters = productName.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!letters) return "";
+
+  const prefix = letters.slice(0, 3).padEnd(3, "X");
+  const maxNumber = products.reduce((max, product) => {
+    if (!product.productCode.startsWith(`PRD-${prefix}-`)) return max;
+    const suffix = Number(product.productCode.split("-").at(-1));
+    return Number.isFinite(suffix) ? Math.max(max, suffix) : max;
+  }, 0);
+
+  return `PRD-${prefix}-${String(maxNumber + 1).padStart(2, "0")}`;
+}
 
 const EMPTY_FORM: FormData = { productName: "", productCode: "", sellingPrice: "", unit: "" };
 const INITIAL_META: PaginationMeta = { page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0 };
+const PRODUCT_UNIT_OPTIONS = Object.values(PRODUCT_UNITS);
 
 export default function ProductsContent() {
   const [list, setList]               = useState<ProductRecord[]>([]);
@@ -169,14 +183,21 @@ export default function ProductsContent() {
       {showCreate && (
         <SectionCard title="New Product">
           <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4" noValidate>
-            <Input label="Product Name" name="productName" type="text" placeholder="e.g. Filter Coffee" value={createData.productName} onChange={(e) => { setCreateData((p) => ({ ...p, productName: e.target.value })); setCreateErrors((p) => ({ ...p, productName: "" })); }} error={createErrors.productName} required autoComplete="off" />
-            <Input label="Product Code" name="productCode" type="text" placeholder="e.g. COFFEE01" value={createData.productCode} onChange={(e) => { setCreateData((p) => ({ ...p, productCode: e.target.value })); setCreateErrors((p) => ({ ...p, productCode: "" })); }} error={createErrors.productCode} required autoComplete="off" />
+            <Input label="Product Name" name="productName" type="text" placeholder="e.g. Filter Coffee" value={createData.productName} onChange={(e) => { const productName = e.target.value; setCreateData((p) => ({ ...p, productName, productCode: buildProductCodePreview(productName, list) })); setCreateErrors((p) => ({ ...p, productName: "", productCode: "" })); }} error={createErrors.productName} required autoComplete="off" />
+            <Input label="Product Code" name="productCode" type="text" placeholder="Auto-generated" value={createData.productCode} onChange={() => {}} error={createErrors.productCode} hint="Generated from the first three product letters." required autoComplete="off" readOnly />
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-slate-700">Selling Price (₹) <span className="text-red-500">*</span></label>
               <input type="number" min="0.01" step="0.01" placeholder="0.00" value={createData.sellingPrice} onChange={(e) => { setCreateData((p) => ({ ...p, sellingPrice: e.target.value })); setCreateErrors((p) => ({ ...p, sellingPrice: "" })); }} className={inputClass} />
               {createErrors.sellingPrice && <p className="text-xs font-medium text-red-600">{createErrors.sellingPrice}</p>}
             </div>
-            <Input label="Unit" name="unit" type="text" placeholder="e.g. piece, kg, litre, cup" value={createData.unit} onChange={(e) => { setCreateData((p) => ({ ...p, unit: e.target.value })); setCreateErrors((p) => ({ ...p, unit: "" })); }} error={createErrors.unit} hint="How is this product measured?" required autoComplete="off" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700">Unit <span className="text-red-500">*</span></label>
+              <select value={createData.unit} onChange={(e) => { setCreateData((p) => ({ ...p, unit: e.target.value })); setCreateErrors((p) => ({ ...p, unit: "" })); }} className={inputClass}>
+                <option value="">Select unit</option>
+                {PRODUCT_UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+              {createErrors.unit ? <p className="text-xs font-medium text-red-600">{createErrors.unit}</p> : <p className="text-xs text-slate-400">How is this product measured?</p>}
+            </div>
             <div className="col-span-2 flex flex-col gap-3">
               {createErr && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{createErr}</div>}
               <div className="flex gap-3">
@@ -193,13 +214,20 @@ export default function ProductsContent() {
         <SectionCard title={`Edit: ${editingProduct.productName}`}>
           <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4" noValidate>
             <Input label="Product Name" name="productName" type="text" value={editData.productName} onChange={(e) => { setEditData((p) => ({ ...p, productName: e.target.value })); setEditErrors((p) => ({ ...p, productName: "" })); }} error={editErrors.productName} required autoComplete="off" />
-            <Input label="Product Code" name="productCode" type="text" value={editData.productCode} onChange={(e) => { setEditData((p) => ({ ...p, productCode: e.target.value })); setEditErrors((p) => ({ ...p, productCode: "" })); }} error={editErrors.productCode} required autoComplete="off" />
+            <Input label="Product Code" name="productCode" type="text" value={editData.productCode} onChange={() => {}} error={editErrors.productCode} required autoComplete="off" readOnly />
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-slate-700">Selling Price (₹) <span className="text-red-500">*</span></label>
               <input type="number" min="0.01" step="0.01" value={editData.sellingPrice} onChange={(e) => { setEditData((p) => ({ ...p, sellingPrice: e.target.value })); setEditErrors((p) => ({ ...p, sellingPrice: "" })); }} className={inputClass} />
               {editErrors.sellingPrice && <p className="text-xs font-medium text-red-600">{editErrors.sellingPrice}</p>}
             </div>
-            <Input label="Unit" name="unit" type="text" value={editData.unit} onChange={(e) => { setEditData((p) => ({ ...p, unit: e.target.value })); setEditErrors((p) => ({ ...p, unit: "" })); }} error={editErrors.unit} required autoComplete="off" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-700">Unit <span className="text-red-500">*</span></label>
+              <select value={editData.unit} onChange={(e) => { setEditData((p) => ({ ...p, unit: e.target.value })); setEditErrors((p) => ({ ...p, unit: "" })); }} className={inputClass}>
+                <option value="">Select unit</option>
+                {PRODUCT_UNIT_OPTIONS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+              </select>
+              {editErrors.unit && <p className="text-xs font-medium text-red-600">{editErrors.unit}</p>}
+            </div>
             <div className="col-span-2 flex flex-col gap-3">
               {editErr && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{editErr}</div>}
               <div className="flex gap-3">

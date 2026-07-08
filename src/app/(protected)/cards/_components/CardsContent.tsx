@@ -38,6 +38,16 @@ function getCardStatusVariant(status: string): "success" | "warning" | "danger" 
 }
 const INITIAL_META: PaginationMeta = { page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0 };
 
+function formatDateInput(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
+function getDefaultExpiryDate(): string {
+  const expiry = new Date();
+  expiry.setFullYear(expiry.getFullYear() + 1);
+  return formatDateInput(expiry);
+}
+
 export default function CardsContent() {
   // List state
   const [cardList,    setCardList]    = useState<CardRecord[]>([]);
@@ -114,7 +124,7 @@ export default function CardsContent() {
   function handleClearFilters() { setSearchQuery(""); setStatusFilter(""); setCurrentPage(1); }
 
   function handleOpenCreate() {
-    setShowCreate(true); setExpiresAt(""); setExpiresAtErr(""); setCreateErr("");
+    setShowCreate(true); setExpiresAt(getDefaultExpiryDate()); setExpiresAtErr(""); setCreateErr("");
     setMemberQuery(""); setMemberResults([]); setSelectedMember(null); setMemberErr("");
   }
 
@@ -160,7 +170,7 @@ export default function CardsContent() {
   // Minimum expiry date: tomorrow
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 1);
-  const minDateStr = minDate.toISOString().split("T")[0];
+  const minDateStr = formatDateInput(minDate);
 
   return (
     <div className="p-6 flex flex-col gap-6">

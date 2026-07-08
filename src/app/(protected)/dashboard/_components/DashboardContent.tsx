@@ -66,23 +66,6 @@ export default function DashboardContent() {
           ))}
         </div>
       </SectionCard>
-
-      <SectionCard title="System Status">
-        <ul className="flex flex-col gap-2 text-sm text-slate-600">
-          <li className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-            Authentication system fully operational
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-            Session verified and active
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
-            Business modules building from Day 12 onward
-          </li>
-        </ul>
-      </SectionCard>
     </div>
   );
 }

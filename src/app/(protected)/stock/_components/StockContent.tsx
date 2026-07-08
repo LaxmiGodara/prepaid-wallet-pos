@@ -14,10 +14,10 @@ interface StockRecord {
   id: string;
   productId: string;
   productName: string;
-  category: string;
+  productCode: string;
   unit: string;
   productStatus: string;
-  currentQuantity: number;
+  currentQty: number;
   updatedAt: string;
 }
 
@@ -185,7 +185,7 @@ export default function StockContent() {
       <div className="flex-1 min-w-[200px] max-w-xs">
         <input
           type="search"
-          placeholder="Search by product or category..."
+          placeholder="Search by product or code..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className={inputClass}
@@ -197,8 +197,8 @@ export default function StockContent() {
         <SectionCard title={`Adjust Stock: ${adjustingStock.productName}`}>
           <p className="text-sm text-slate-500 mb-4">
             Current stock:{" "}
-            <strong className={getQtyColor(adjustingStock.currentQuantity)}>
-              {adjustingStock.currentQuantity} {adjustingStock.unit}
+            <strong className={getQtyColor(adjustingStock.currentQty)}>
+              {adjustingStock.currentQty} {adjustingStock.unit}
             </strong>
           </p>
           <form
@@ -334,7 +334,7 @@ export default function StockContent() {
                 <tr>
                   {[
                     "Product",
-                    "Category",
+                    "Code",
                     "Current Stock",
                     "Last Updated",
                     "Actions",
@@ -370,26 +370,26 @@ export default function StockContent() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {s.category}
+                      {s.productCode}
                     </td>
                     <td className="px-6 py-4">
                       <span
                         className={[
                           "text-sm",
-                          getQtyColor(s.currentQuantity),
+                          getQtyColor(s.currentQty),
                         ].join(" ")}
                       >
-                        {s.currentQuantity}{" "}
+                        {s.currentQty}{" "}
                         <span className="text-xs font-normal text-slate-500">
                           {s.unit}
                         </span>
                       </span>
-                      {s.currentQuantity === 0 && (
+                      {s.currentQty === 0 && (
                         <span className="ml-2 text-xs text-red-500 font-medium">
                           Out of stock
                         </span>
                       )}
-                      {s.currentQuantity > 0 && s.currentQuantity < 10 && (
+                      {s.currentQty > 0 && s.currentQty < 10 && (
                         <span className="ml-2 text-xs text-amber-600 font-medium">
                           Low
                         </span>

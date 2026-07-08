@@ -1,7 +1,11 @@
 import mongoose from "mongoose";
 
 import { CARD_STATUS, PAGINATION, RECORD_STATUS } from "@/lib/constants";
-import { Card, Member, Wallet } from "@/lib/models";
+import { Member, Wallet } from "@/lib/models";
+import {
+  findCardsForMembers,
+  findMemberCard,
+} from "@/lib/services/card.service";
 import { AppError, type FieldError } from "@/types";
 
 // ─── Output Types ──────────────────────────────────────────────────────────────
@@ -180,14 +184,13 @@ export async function listMembers(
   const memberIds = members.map((m) => m._id);
 
   // Query 3+4: wallets AND cards in one Promise.all - three-way enrichment
-  const [wallets, cards] = await Promise.all([
+  const [wallets, cardMap] = await Promise.all([
     Wallet.find({ memberId: { $in: memberIds } }),
-    Card.find({ memberId: { $in: memberIds }, isDeleted: false }),
+    findCardsForMembers(memberIds),
   ]);
 
   // Build lookup Maps for O(1) access when combining the three datasets
   const walletMap = new Map(wallets.map((w) => [w.memberId.toString(), w]));
-  const cardMap = new Map(cards.map((c) => [c.memberId.toString(), c]));
 
   const memberList: MemberRecord[] = members.map((m) => {
     const wallet = walletMap.get(m._id.toString()) ?? null;
@@ -263,7 +266,7 @@ export async function createMember(
           deletedAt: null,
         },
       ],
-      { session },
+      { session, ordered: true },
     );
 
     const [wallet] = await Wallet.create(
@@ -276,7 +279,7 @@ export async function createMember(
           updatedBy: null,
         },
       ],
-      { session },
+      { session, ordered: true },
     );
 
     await session.commitTransaction();
@@ -395,7 +398,7 @@ export async function updateMember(
   // Fetch wallet and card to return the full enriched record
   const [wallet, card] = await Promise.all([
     Wallet.findOne({ memberId: updated._id }),
-    Card.findOne({ memberId: updated._id, isDeleted: false }),
+    findMemberCard(updated._id),
   ]);
 
   const { isReady } = computeReadiness(updated, wallet ?? null, card ?? null);
@@ -442,7 +445,7 @@ export async function updateMemberStatus(
 
   const [wallet, card] = await Promise.all([
     Wallet.findOne({ memberId: updated._id }),
-    Card.findOne({ memberId: updated._id, isDeleted: false }),
+    findMemberCard(updated._id),
   ]);
 
   const { isReady } = computeReadiness(updated, wallet ?? null, card ?? null);
@@ -473,7 +476,7 @@ export async function getMemberDetail(
   const [member, wallet, card] = await Promise.all([
     Member.findOne({ _id: memberId, isDeleted: false }),
     Wallet.findOne({ memberId }),
-    Card.findOne({ memberId, isDeleted: false }),
+    findMemberCard(memberId),
   ]);
 
   if (!member) {

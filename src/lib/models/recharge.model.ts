@@ -7,6 +7,7 @@ export interface IRecharge extends Document {
   cardId: mongoose.Types.ObjectId;
   amount: number;
   paymentMode: string;
+  referenceNumber: string | null;
   notes: string;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
@@ -43,6 +44,12 @@ const rechargeSchema = new Schema<IRecharge>(
       type: String,
       required: true,
       enum: Object.values(PAYMENT_MODES),
+    },
+
+    referenceNumber: {
+      type: String,
+      trim: true,
+      default: null,
     },
 
     notes: {

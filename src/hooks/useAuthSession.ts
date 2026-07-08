@@ -30,8 +30,14 @@ export function useAuthSession(): UseAuthSessionResult {
       const stored = getSession();
 
       if (!stored?.token) {
+        if (isMounted) setIsVerifying(false);
         router.replace("/login");
         return;
+      }
+
+      if (isMounted) {
+        setSession(stored);
+        setIsVerifying(false);
       }
 
       try {
@@ -56,15 +62,9 @@ export function useAuthSession(): UseAuthSessionResult {
 
         saveSession(freshSession);
 
-        if (isMounted) {
-          setSession(freshSession);
-          setIsVerifying(false);
-        }
+        if (isMounted) setSession(freshSession);
       } catch {
-        if (isMounted) {
-          setSession(stored);
-          setIsVerifying(false);
-        }
+        if (isMounted) setSession(stored);
       }
     }
 

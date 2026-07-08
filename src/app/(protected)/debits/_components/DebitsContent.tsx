@@ -9,7 +9,7 @@ import type { PaginationMeta } from "@/types";
 interface DebitRecord {
   id: string; memberId: string; memberName: string; walletId: string;
   amount: number; reason: string;
-  walletBalanceBefore: number; walletBalanceAfter: number;
+  walletBalanceBefore?: number; walletBalanceAfter?: number;
   createdAt: string;
 }
 
@@ -244,7 +244,9 @@ className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50
                 <td className="px-6 py-4 text-sm font-bold text-red-600">-{formatCurrency(d.amount)}</td>
                 <td className="px-6 py-4 text-sm text-slate-600 max-w-[200px] truncate">{d.reason}</td>
                 <td className="px-6 py-4 text-xs text-slate-500">
-                  {formatCurrency(d.walletBalanceBefore)} → <strong className="text-slate-700">{formatCurrency(d.walletBalanceAfter)}</strong>
+                  {d.walletBalanceBefore !== undefined && d.walletBalanceAfter !== undefined
+                    ? <>{formatCurrency(d.walletBalanceBefore)} → <strong className="text-slate-700">{formatCurrency(d.walletBalanceAfter)}</strong></>
+                    : "Not available"}
                 </td>
                 <td className="px-6 py-4 text-xs text-slate-500 whitespace-nowrap">{formatDate(d.createdAt)}</td>
               </tr>

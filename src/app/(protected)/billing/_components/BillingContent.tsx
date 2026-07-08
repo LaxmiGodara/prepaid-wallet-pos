@@ -16,12 +16,12 @@ interface LookupResult {
 }
 
 interface ProductResult {
-  id: string; productName: string; category: string;
+  id: string; productName: string; productCode: string;
   sellingPrice: number; unit: string;
 }
 
 interface CartItem {
-  productId: string; productName: string; category: string;
+  productId: string; productName: string; productCode: string;
   unit: string; unitPrice: number; quantity: number; subtotal: number;
 }
 
@@ -40,7 +40,7 @@ interface BillDetailRecord {
 
 const INITIAL_META: PaginationMeta = { page: 1, limit: PAGINATION.DEFAULT_LIMIT, total: 0, totalPages: 0 };
 
-function formatCurrency(n: number) { return `₹${n.toLocaleString("en-IN")}`; }
+function formatCurrency(n: number) { return `₹${Number.isFinite(n) ? n.toLocaleString("en-IN") : "0"}`; }
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
@@ -143,7 +143,7 @@ export default function BillingContent() {
 
   // ── Cart Management ───────────────────────────────────────────────────────
   function addToCart(product: ProductResult, quantity: number) {
-    if (quantity <= 0) return;
+    if (!Number.isInteger(quantity) || quantity <= 0) return;
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
       if (existing) {
@@ -154,7 +154,7 @@ export default function BillingContent() {
       }
       return [...prev, {
         productId: product.id, productName: product.productName,
-        category: product.category, unit: product.unit,
+        productCode: product.productCode, unit: product.unit,
         unitPrice: product.sellingPrice, quantity,
         subtotal: quantity * product.sellingPrice,
       }];
@@ -167,7 +167,7 @@ export default function BillingContent() {
   }
 
   function updateCartQty(productId: string, qty: number) {
-    if (qty <= 0) { removeFromCart(productId); return; }
+    if (!Number.isInteger(qty) || qty <= 0) return;
     setCart((prev) => prev.map((i) => i.productId === productId
       ? { ...i, quantity: qty, subtotal: qty * i.unitPrice } : i
     ));
@@ -331,7 +331,7 @@ export default function BillingContent() {
               <div className="mb-4">
                 <label className="text-sm font-medium text-slate-700 mb-1.5 block">Search and add products</label>
                 <div className="relative">
-                  <input type="text" placeholder="Type product name or category..." value={productSearch}
+                  <input type="text" placeholder="Type product name or code..." value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     className={inputClass} />
                   {(productResults.length > 0 || isSearchingProduct) && (
@@ -341,14 +341,14 @@ export default function BillingContent() {
                         <div key={product.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0">
                           <div>
                             <p className="text-sm font-medium text-slate-800">{product.productName}</p>
-                            <p className="text-xs text-slate-400">{product.category} · {formatCurrency(product.sellingPrice)} / {product.unit}</p>
+                            <p className="text-xs text-slate-400">{product.productCode} · {formatCurrency(product.sellingPrice)} / {product.unit}</p>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             <input type="number" min="1" defaultValue={1} id={`qty-${product.id}`}
                               className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-300" />
                             <Button variant="primary" size="sm" onClick={() => {
                               const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
-                              addToCart(product, parseInt(qtyInput?.value ?? "1", 10));
+                              addToCart(product, Number(qtyInput?.value || 1));
                             }}>Add</Button>
                           </div>
                         </div>
@@ -374,12 +374,12 @@ export default function BillingContent() {
                         <tr key={item.productId}>
                           <td className="px-3 py-3">
                             <p className="text-sm font-medium text-slate-800">{item.productName}</p>
-                            <p className="text-xs text-slate-400">{item.category}</p>
+                            <p className="text-xs text-slate-400">{item.productCode}</p>
                           </td>
                           <td className="px-3 py-3 text-sm text-slate-600">{formatCurrency(item.unitPrice)}</td>
                           <td className="px-3 py-3">
-                            <input type="number" min="1" value={item.quantity}
-                              onChange={(e) => updateCartQty(item.productId, parseInt(e.target.value, 10))}
+                            <input type="number" min="1" value={Number.isFinite(item.quantity) ? item.quantity : ""}
+                              onChange={(e) => updateCartQty(item.productId, Number(e.target.value))}
                               className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-300" />
                           </td>
                           <td className="px-3 py-3 text-sm font-semibold text-slate-700">{formatCurrency(item.subtotal)}</td>

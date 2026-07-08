@@ -130,10 +130,11 @@ export async function addStockMovement(
         movementType:    input.type,               // ← was type
         quantityChanged: qty,                       // ← was quantity
         quantityBefore:  balanceBefore,             // ← was balanceBefore
+        quantityAfter:   balanceAfter,
         notes:           input.notes?.trim() ?? "", // ← null → ""
         createdBy:       actorOid,
       }],
-      { session }
+      { session, ordered: true }
     );
 
     await session.commitTransaction();

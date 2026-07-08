@@ -11,6 +11,8 @@ export interface ICard extends Document {
   replacedByCardId: mongoose.Types.ObjectId | null;
   createdBy: mongoose.Types.ObjectId;
   updatedBy: mongoose.Types.ObjectId | null;
+  isDeleted: boolean;
+deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +73,15 @@ const cardSchema = new Schema<ICard>(
       ref: "Staff",
       default: null,
     },
+    isDeleted: {
+  type: Boolean,
+  default: false,
+},
+
+deletedAt: {
+  type: Date,
+  default: null,
+},
   },
   {
     timestamps: true,

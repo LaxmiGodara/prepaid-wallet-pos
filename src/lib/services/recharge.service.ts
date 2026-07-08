@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
-import { PAGINATION, PAYMENT_MODES, RECORD_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
-import { Member, Recharge, Transaction, Wallet } from "@/lib/models";
+import { CARD_STATUS, PAGINATION, PAYMENT_MODES, RECORD_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
+import { Card, Member, Recharge, Transaction, Wallet } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
 export interface RechargeRecord {
@@ -11,6 +11,7 @@ export interface RechargeRecord {
   walletId:    string;
   amount:      number;
   paymentMode: string;
+  referenceNumber: string | null;
   notes:       string;
   // walletBalanceBefore/After omitted from list - Transaction model
   // has no referenceId so we cannot join back from list endpoint.
@@ -24,6 +25,7 @@ interface CreateRechargeInput {
   memberId?:    string;
   amount?:      number | string;
   paymentMode?: string;
+  referenceNumber?: string;
   notes?:       string;
 }
 
@@ -58,6 +60,9 @@ export async function listRecharges(
   const memberIds = recharges.map((r) => r.memberId);
   const members   = await Member.find({ _id: { $in: memberIds } });
   const memberMap = new Map(members.map((m) => [m._id.toString(), m.fullName]));
+  const rechargeIds = recharges.map((r) => r._id);
+  const transactions = await Transaction.find({ rechargeId: { $in: rechargeIds } });
+  const transactionMap = new Map(transactions.map((t) => [t.rechargeId?.toString(), t]));
 
   // Transaction model has no referenceId - cannot join back from list.
   // Show amount only; before/after balance is available on createRecharge return.
@@ -68,7 +73,10 @@ export async function listRecharges(
     walletId:    r.walletId.toString(),
     amount:      r.amount,
     paymentMode: r.paymentMode,
+    referenceNumber: r.referenceNumber,
     notes:       r.notes ?? "",
+    walletBalanceBefore: transactionMap.get(r._id.toString())?.balanceBefore,
+    walletBalanceAfter:  transactionMap.get(r._id.toString())?.balanceAfter,
     createdAt:   r.createdAt.toISOString(),
   }));
 
@@ -106,6 +114,17 @@ export async function createRecharge(
     throw new AppError("Cannot recharge an inactive wallet.", 400);
   }
 
+  const activeCard = await Card.findOne({
+    memberId: input.memberId,
+    status: CARD_STATUS.ACTIVE,
+    expiresAt: { $gt: new Date() },
+  });
+  if (!activeCard) {
+    throw new AppError("Member must have an active card before recharge.", 400, [
+      { field: "memberId", message: "Assign an active card to this member first." },
+    ]);
+  }
+
   const actorOid  = new mongoose.Types.ObjectId(actorId);
   const memberOid = new mongoose.Types.ObjectId(input.memberId);
 
@@ -130,12 +149,14 @@ export async function createRecharge(
       [{
         memberId:    memberOid,
         walletId:    wallet._id,
+        cardId:      activeCard._id,
         amount,
         paymentMode: input.paymentMode,
-        notes:       input.notes?.trim() ?? "",  // ← null → "" (model requires string)
+        referenceNumber: input.referenceNumber?.trim() || null,
+        notes:       input.notes?.trim() ?? "",
         createdBy:   actorOid,
       }],
-      { session }
+      { session, ordered: true }
     );
 
     // Transaction model fields: balanceBefore/balanceAfter (not walletBalance...)
@@ -148,9 +169,10 @@ export async function createRecharge(
         amount,
         balanceBefore,   // ← was walletBalanceBefore
         balanceAfter,    // ← was walletBalanceAfter
+        rechargeId:    recharge._id,
         createdBy:    actorOid,
       }],
-      { session }
+      { session, ordered: true }
     );
 
     await session.commitTransaction();
@@ -162,6 +184,7 @@ export async function createRecharge(
       walletId:            wallet._id.toString(),
       amount,
       paymentMode:         recharge.paymentMode,
+      referenceNumber:     recharge.referenceNumber,
       notes:               recharge.notes ?? "",
       walletBalanceBefore: balanceBefore,
       walletBalanceAfter:  balanceAfter,
