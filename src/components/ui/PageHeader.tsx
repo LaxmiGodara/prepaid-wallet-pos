@@ -23,9 +23,13 @@ export default function PageHeader({
     <div className="flex items-start justify-between gap-4">
       {/* Title and subtitle group */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
+        <h1 className="text-2xl font-semibold text-[var(--color-text)] font-display">
+          {title}
+        </h1>
         {subtitle && (
-          <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+          <p className="text-sm text-[var(--color-text-muted)] mt-0.5">
+            {subtitle}
+          </p>
         )}
       </div>
 

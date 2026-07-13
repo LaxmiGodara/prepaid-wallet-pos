@@ -48,7 +48,8 @@ const stockSchema = new Schema<IStock>(
   },
 );
 
-stockSchema.index({ productId: 1 }, { unique: true });
+// productId's unique index is already created by `unique: true` on the
+// field itself, above — an explicit stockSchema.index() here duplicated it.
 
 export const Stock =
   (mongoose.models.Stock as mongoose.Model<IStock>) ||

@@ -48,8 +48,23 @@ export function clearSession(): void {
 
 
 
+// getAuthorizationHeader() previously returned a `Bearer <token>` header built
+// from the token in localStorage. Auth now flows entirely through the
+// httpOnly cookie set by the server (see src/lib/auth-cookie.ts), which the
+// browser attaches to every same-origin request automatically — no client-
+// side header is needed or possible, since client JS can no longer read the
+// token at all.
+//
+// This function is kept (returning null) rather than removed so the ~15
+// call sites across the app that do
+//   const auth = getAuthorizationHeader();
+//   fetch(url, { headers: auth ? { Authorization: auth } : {} })
+// keep working unchanged — they now simply send no Authorization header,
+// and the request is authenticated by the cookie instead. Cleaning up those
+// call sites to drop the dead header logic entirely is tracked as follow-up
+// work (see README "Security notes"), not done in this pass to avoid a wide,
+// low-value mechanical diff across every module page.
+
 export function getAuthorizationHeader(): string | null {
-  const session = getSession();
-  if (!session?.token) return null;
-  return `Bearer ${session.token}`;
+  return null;
 }

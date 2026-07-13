@@ -159,7 +159,7 @@ export default function ProductsContent() {
 
   const hasActiveFilters = Boolean(search || statusFilter);
 
-  const inputClass = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all";
+  const inputClass = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all";
 
   return (
     <div className="p-6 flex flex-col gap-6">
@@ -171,7 +171,7 @@ export default function ProductsContent() {
         <div className="flex-1 min-w-[200px] max-w-xs">
           <input type="search" placeholder="Search by name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className={inputClass} />
         </div>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer">
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer">
           <option value="">All Status</option>
           <option value={RECORD_STATUS.ACTIVE}>Active</option>
           <option value={RECORD_STATUS.INACTIVE}>Inactive</option>
@@ -251,7 +251,7 @@ export default function ProductsContent() {
         {!isLoading && !listError && list.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[680px]">
-              <thead><tr>{["Product", "Code", "Price", "Unit", "Status", "Actions"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>)}</tr></thead>
+              <thead><tr>{["Product", "Code", "Price", "Unit", "Status", "Actions"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-50">
                 {list.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
@@ -262,7 +262,7 @@ export default function ProductsContent() {
                     <td className="px-6 py-4"><Badge label={p.status} variant={getStatusVariant(p.status)} /></td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => { closeAll(); setEditingProduct(p); setEditData({ productName: p.productName, productCode: p.productCode, sellingPrice: String(p.sellingPrice), unit: p.unit }); }} disabled={!!togglingId} className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors">Edit</button>
+                        <button type="button" onClick={() => { closeAll(); setEditingProduct(p); setEditData({ productName: p.productName, productCode: p.productCode, sellingPrice: String(p.sellingPrice), unit: p.unit }); }} disabled={!!togglingId} className="text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] disabled:opacity-40 transition-colors">Edit</button>
                         <span className="text-slate-200">|</span>
                         <button type="button" onClick={() => void handleToggle(p)} disabled={togglingId === p.id} className={["text-xs font-medium transition-colors disabled:opacity-40", p.status === RECORD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>
                           {togglingId === p.id ? "Updating..." : p.status === RECORD_STATUS.ACTIVE ? "Deactivate" : "Activate"}

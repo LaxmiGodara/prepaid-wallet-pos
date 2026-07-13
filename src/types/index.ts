@@ -73,10 +73,13 @@ export interface JwtPayload {
 }
 
 // ─── Session Data ────────────────────────────────────────────────────────────
-// What we store in browser localStorage after a successful login.
+// What the client caches (in localStorage, for a fast initial paint) after a
+// successful login. This deliberately does NOT include the JWT itself — the
+// token lives only in an httpOnly cookie set by the server (see
+// src/lib/auth-cookie.ts) and is never readable by client-side JavaScript.
+// This cache is a UI convenience, not a credential.
 
 export interface SessionData {
-  token: string;
   staff: {
     id: string;
     fullName: string;
@@ -84,4 +87,16 @@ export interface SessionData {
     role: string;
     status: string;
   };
+}
+
+// ─── Issued Session ──────────────────────────────────────────────────────────
+// Server-internal shape returned by loginStaff/changeOwnPassword: it carries
+// the raw JWT so the route handler can set it as an httpOnly cookie via
+// setAuthCookie(). This type must never be sent to the client as JSON — route
+// handlers deliberately destructure `{ staff }` out of it for the response
+// body and pass `token` only to setAuthCookie(). See src/lib/auth-cookie.ts.
+
+export interface IssuedSession {
+  token: string;
+  staff: SessionData["staff"];
 }

@@ -49,7 +49,17 @@ export async function connectDB(): Promise<typeof mongoose> {
 
     // mongoose.connect() returns a Promise that resolves to the mongoose instance.
     // We store the Promise (not the result) so parallel requests can share it.
-    global.mongooseCache.promise = mongoose.connect(uri);
+    //
+    // serverSelectionTimeoutMS/connectTimeoutMS are set explicitly rather than
+    // left at the driver defaults (30s) — a bad URI, an unreachable host, or a
+    // replica set that was requested (`?replicaSet=rs0`) but never actually
+    // initiated with rs.initiate() should fail within a few seconds with a
+    // clear error, not leave every request (including the login page's
+    // /api/auth/setup-status check) hanging indefinitely with no feedback.
+    global.mongooseCache.promise = mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+    });
   }
 
   // ── Step 4: Wait for the connection Promise to resolve ──────────────────

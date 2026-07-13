@@ -1,9 +1,9 @@
 
 import bcrypt from "bcryptjs";
-import mongoose from "mongoose";
+import mongoose, { type QueryFilter, type UpdateQuery } from "mongoose";
 
 import { PAGINATION, RECORD_STATUS, STAFF_ROLES } from "@/lib/constants";
-import { Staff } from "@/lib/models";
+import { Staff, type IStaff } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
 
@@ -124,7 +124,7 @@ export async function listStaff(input: ListStaffInput): Promise<ListStaffResult>
   const limit = Math.min(Math.max(1, input.limit), PAGINATION.MAX_LIMIT);
   const skip = (page - 1) * limit;
 
-  const filter: Record<string, any> = { isDeleted: false };
+  const filter: QueryFilter<IStaff> = { isDeleted: false };
 
   if (input.search) {
     const safeSearch = input.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -344,7 +344,7 @@ export async function updateStaff(
   }
 
 
-  const updateFields: Record<string, any> = {
+  const updateFields: UpdateQuery<IStaff> = {
     updatedBy: new mongoose.Types.ObjectId(actorId),
   };
 

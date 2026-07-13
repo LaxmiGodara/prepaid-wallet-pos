@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* ─── Design tokens ──────────────────────────────────────────────────────── */
+/* Warm "ledger & credit" palette: deep ink surfaces, warm paper background,  */
+/* and a single amber/gold accent standing in for value & currency — instead */
+/* of the generic slate/blue admin-panel default.                           */
+
+:root {
+  --color-ink: #12141c;
+  --color-ink-soft: #1b1f2c;
+  --color-ink-line: rgba(255, 255, 255, 0.07);
+
+  --color-paper: #f6f4ef;
+  --color-surface: #ffffff;
+  --color-line: #e8e3d8;
+
+  --color-text: #1a1c24;
+  --color-text-muted: #6b6a63;
+
+  --color-accent: #b9822f;
+  --color-accent-strong: #96691f;
+  --color-accent-soft: #f4e6cb;
+  --color-accent-soft-line: #e6cd9a;
+}
+
 html,
 body {
   margin: 0;
@@ -13,4 +36,35 @@ body {
 
 body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+.font-price {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise-in {
+  animation: rise-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in {
+    animation: none;
+  }
 }

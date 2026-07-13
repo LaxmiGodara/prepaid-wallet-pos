@@ -236,7 +236,7 @@ export default function RechargesContent() {
           placeholder="Search by member name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
         />
       </div>
 
@@ -254,7 +254,7 @@ export default function RechargesContent() {
                 Member <span className="text-red-500">*</span>
               </label>
               {selectedMember ? (
-                <div className="flex items-center justify-between rounded-xl border border-blue-300 bg-blue-50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-xl border border-[var(--color-accent-soft-line)] bg-[var(--color-accent-soft)]/40 px-4 py-3">
                   <div>
                     <p className="text-sm font-medium text-slate-800">
                       {selectedMember.fullName}
@@ -272,7 +272,7 @@ export default function RechargesContent() {
                       setSelectedMember(null);
                       setMemberQuery("");
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium ml-3"
+                    className="text-xs text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] font-medium ml-3"
                   >
                     Change
                   </button>
@@ -287,7 +287,7 @@ export default function RechargesContent() {
                       setMemberQuery(e.target.value);
                       setFormErrors((p) => ({ ...p, memberId: "" }));
                     }}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
                   />
                   {(memberResults.length > 0 || isSearchingMember) && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
@@ -343,7 +343,7 @@ export default function RechargesContent() {
                   setAmount(e.target.value);
                   setFormErrors((p) => ({ ...p, amount: "" }));
                 }}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
               />
               {formErrors.amount && (
                 <p className="text-xs font-medium text-red-600">
@@ -360,7 +360,7 @@ export default function RechargesContent() {
               <select
                 value={paymentMode}
                 onChange={(e) => setPaymentMode(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer"
               >
                 {PAYMENT_MODE_OPTIONS.map((m) => (
                   <option key={m} value={m}>
@@ -380,7 +380,7 @@ export default function RechargesContent() {
                 placeholder="UPI ID, cheque number etc. (optional)"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
               />
             </div>
 
@@ -394,7 +394,7 @@ export default function RechargesContent() {
                 placeholder="Any additional note (optional)"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
               />
             </div>
 
@@ -487,7 +487,7 @@ export default function RechargesContent() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
+                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
                     >
                       {h}
                     </th>

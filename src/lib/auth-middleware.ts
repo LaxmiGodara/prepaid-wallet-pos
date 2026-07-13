@@ -2,6 +2,7 @@
 import jwt from "jsonwebtoken";
 import type { NextRequest } from "next/server";
 
+import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 import { RECORD_STATUS } from "@/lib/constants";
 import { connectDB } from "@/lib/db";
 import { Staff } from "@/lib/models";
@@ -20,10 +21,19 @@ export interface AuthenticatedStaff {
 export async function requireAuth(
   request: NextRequest
 ): Promise<AuthenticatedStaff> {
-  const authHeader = request.headers.get("authorization") ?? "";
-  const [scheme, token] = authHeader.split(" ");
+  // The browser client sends the JWT as an httpOnly cookie (set by the login/
+  // password-change routes) so it's never reachable by client-side JS. The
+  // Authorization header is kept as a fallback so non-browser API clients
+  // (scripts, future mobile app, Postman) can still authenticate directly.
+  const cookieToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-  if (scheme !== "Bearer" || !token) {
+  const authHeader = request.headers.get("authorization") ?? "";
+  const [scheme, headerToken] = authHeader.split(" ");
+  const bearerToken = scheme === "Bearer" ? headerToken : undefined;
+
+  const token = cookieToken ?? bearerToken;
+
+  if (!token) {
     throw new AppError("Authentication is required. Please log in.", 401);
   }
 

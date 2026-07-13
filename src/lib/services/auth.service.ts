@@ -7,7 +7,7 @@ import {
   AppError,
   type FieldError,
   type JwtPayload,
-  type SessionData,
+  type IssuedSession,
 } from "@/types";
 
 interface SetupInput {
@@ -56,7 +56,7 @@ export async function getSetupStatus(): Promise<SetupStatus> {
   return { isSetupComplete: count > 0 };
 }
 
-function validateSetupInput(input: SetupInput): FieldError[] {
+export function validateSetupInput(input: SetupInput): FieldError[] {
   const errors: FieldError[] = [];
 
   const fullName = input.fullName?.trim() ?? "";
@@ -168,7 +168,7 @@ export async function createSuperAdmin(input: SetupInput): Promise<SafeStaff> {
   };
 }
 
-export async function loginStaff(input: LoginInput): Promise<SessionData> {
+export async function loginStaff(input: LoginInput): Promise<IssuedSession> {
   const errors: FieldError[] = [];
 
   if (!input.username?.trim()) {
@@ -330,7 +330,7 @@ export async function updateOwnProfile(
   };
 }
 
-function validateChangePasswordInput(input: ChangePasswordInput): FieldError[] {
+export function validateChangePasswordInput(input: ChangePasswordInput): FieldError[] {
   const errors: FieldError[] = [];
 
   if (!input.currentPassword) {
@@ -374,7 +374,7 @@ function validateChangePasswordInput(input: ChangePasswordInput): FieldError[] {
 export async function changeOwnPassword(
   staffId: string,
   input: ChangePasswordInput,
-): Promise<SessionData> {
+): Promise<IssuedSession> {
   const validationErrors = validateChangePasswordInput(input);
 
   if (validationErrors.length > 0) {

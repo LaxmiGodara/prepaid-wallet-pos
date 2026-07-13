@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, PageHeader, SectionCard } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
 import {
+  LOW_STOCK_THRESHOLD,
   PAGINATION,
   RECORD_STATUS,
   STOCK_MOVEMENT_TYPES,
@@ -39,7 +40,7 @@ const ADJUSTMENT_TYPES = [
 
 function getQtyColor(qty: number) {
   if (qty === 0) return "text-red-600 font-bold";
-  if (qty < 10) return "text-amber-600 font-semibold";
+  if (qty < LOW_STOCK_THRESHOLD) return "text-amber-600 font-semibold";
   return "text-slate-700 font-semibold";
 }
 
@@ -169,7 +170,7 @@ export default function StockContent() {
   }
 
   const inputClass =
-    "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all";
+    "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all";
 
   return (
     <div className="p-6 flex flex-col gap-6">
@@ -341,7 +342,7 @@ export default function StockContent() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
+                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -389,7 +390,7 @@ export default function StockContent() {
                           Out of stock
                         </span>
                       )}
-                      {s.currentQty > 0 && s.currentQty < 10 && (
+                      {s.currentQty > 0 && s.currentQty < LOW_STOCK_THRESHOLD && (
                         <span className="ml-2 text-xs text-amber-600 font-medium">
                           Low
                         </span>
@@ -406,7 +407,7 @@ export default function StockContent() {
                       <button
                         type="button"
                         onClick={() => openAdjust(s)}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                        className="text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] transition-colors"
                       >
                         Adjust Stock
                       </button>

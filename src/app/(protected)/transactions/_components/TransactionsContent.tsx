@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { Button, PageHeader, SectionCard } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
 import { PAGINATION, TRANSACTION_TYPES } from "@/lib/constants";
@@ -78,10 +79,10 @@ export default function TransactionsContent() {
         <div className="flex-1 min-w-[200px] max-w-xs">
           <input type="search" placeholder="Search by member name..." value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
         </div>
         <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
-          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer">
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer">
           <option value="">All Types</option>
           <option value={TRANSACTION_TYPES.CREDIT}>Credit</option>
           <option value={TRANSACTION_TYPES.DEBIT}>Debit</option>
@@ -124,7 +125,7 @@ export default function TransactionsContent() {
               <thead>
                 <tr>
                   {["Member", "Type", "Amount", "Balance Change", "Source", "Date"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -132,20 +133,21 @@ export default function TransactionsContent() {
                 {list.map((tx) => {
                   const isCredit = tx.type === TRANSACTION_TYPES.CREDIT;
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={tx.id} className="group hover:bg-[var(--color-paper)] border-l-2 border-l-transparent hover:border-l-[var(--color-accent)] transition-all">
                       <td className="px-6 py-4 text-sm font-medium text-slate-800">{tx.memberName}</td>
                       <td className="px-6 py-4">
                         <span className={[
-                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
+                          "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold",
                           isCredit ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600",
                         ].join(" ")}>
-                          {isCredit ? "↑ Credit" : "↓ Debit"}
+                          {isCredit ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
+                          {isCredit ? "Credit" : "Debit"}
                         </span>
                       </td>
-                      <td className={["px-6 py-4 text-sm font-bold", isCredit ? "text-green-700" : "text-red-600"].join(" ")}>
+                      <td className={["px-6 py-4 text-sm font-bold font-price", isCredit ? "text-green-700" : "text-red-600"].join(" ")}>
                         {isCredit ? "+" : "-"}{formatCurrency(tx.amount)}
                       </td>
-                      <td className="px-6 py-4 text-xs text-slate-500">
+                      <td className="px-6 py-4 text-xs text-slate-500 font-price">
                         {formatCurrency(tx.walletBalanceBefore)} → <strong className="text-slate-700">{formatCurrency(tx.walletBalanceAfter)}</strong>
                       </td>
                       <td className="px-6 py-4 text-xs text-slate-500">{tx.referenceModel}</td>

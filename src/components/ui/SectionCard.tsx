@@ -27,14 +27,16 @@ export default function SectionCard({
 
   return (
     <div
-      className={`bg-white rounded-2xl border border-slate-200 shadow-sm ${className}`}
+      className={`bg-[var(--color-surface)] rounded-2xl border border-[var(--color-line)] shadow-[0_1px_2px_rgba(20,16,10,0.04)] ${className}`}
     >
       {/* Card header - only renders when title or actions are provided */}
       {hasHeader && (
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-line)]">
           {/* Title slot - empty span preserves flex layout when no title */}
           {title ? (
-            <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+            <h2 className="text-sm font-semibold tracking-wide uppercase text-[var(--color-text-muted)]">
+              {title}
+            </h2>
           ) : (
             <span />
           )}

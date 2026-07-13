@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Users, UserCheck, UserX } from "lucide-react";
 
 import {
   Badge,
@@ -8,6 +9,7 @@ import {
   Input,
   PageHeader,
   SectionCard,
+  StatCard,
   getStatusVariant,
 } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
@@ -549,29 +551,24 @@ export default function MembersContent() {
 
       {stats && (
         <div className="grid grid-cols-3 gap-4">
-          {[
-            {
-              label: "Total Enrolled",
-              value: stats.total,
-              color: "text-slate-700",
-            },
-            { label: "Active", value: stats.active, color: "text-green-700" },
-            {
-              label: "Inactive",
-              value: stats.inactive,
-              color: "text-slate-400",
-            },
-          ].map(({ label, value, color }) => (
-            <div
-              key={label}
-              className="bg-white rounded-2xl border border-slate-200 px-5 py-4"
-            >
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">
-                {label}
-              </p>
-              <p className={`text-2xl font-bold ${color}`}>{value}</p>
-            </div>
-          ))}
+          <StatCard
+            label="Total Enrolled"
+            value={stats.total}
+            icon={Users}
+            tone="neutral"
+          />
+          <StatCard
+            label="Active"
+            value={stats.active}
+            icon={UserCheck}
+            tone="positive"
+          />
+          <StatCard
+            label="Inactive"
+            value={stats.inactive}
+            icon={UserX}
+            tone="negative"
+          />
         </div>
       )}
 
@@ -583,7 +580,7 @@ export default function MembersContent() {
             placeholder="Search by name or mobile..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
           />
         </div>
         <select
@@ -592,7 +589,7 @@ export default function MembersContent() {
             setStatusFilter(e.target.value);
             setCurrentPage(1);
           }}
-          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer"
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer"
         >
           <option value="">All Status</option>
           <option value={RECORD_STATUS.ACTIVE}>Active</option>
@@ -648,7 +645,7 @@ export default function MembersContent() {
                 value={createData.referenceDetails}
                 onChange={handleCreateChange}
                 rows={2}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all resize-none"
               />
               {createErrors.referenceDetails && (
                 <p className="text-xs font-medium text-red-600">
@@ -720,7 +717,7 @@ export default function MembersContent() {
                 value={editData.referenceDetails}
                 onChange={handleEditChange}
                 rows={2}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all resize-none"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all resize-none"
               />
               {editErrors.referenceDetails && (
                 <p className="text-xs font-medium text-red-600">
@@ -842,7 +839,7 @@ export default function MembersContent() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
+                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
                       >
                         {h}
                       </th>
@@ -859,7 +856,7 @@ export default function MembersContent() {
                         className={[
                           "cursor-pointer transition-colors duration-100",
                           isSelected
-                            ? "bg-blue-50/60 hover:bg-blue-50/80"
+                            ? "bg-[var(--color-accent-soft)]/40/60 hover:bg-[var(--color-accent-soft)]/40/80"
                             : "hover:bg-slate-50/50",
                         ].join(" ")}
                       >
@@ -924,7 +921,7 @@ export default function MembersContent() {
                               type="button"
                               onClick={() => handleOpenEdit(member)}
                               disabled={!!togglingId}
-                              className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors"
+                              className="text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] disabled:opacity-40 transition-colors"
                             >
                               Edit
                             </button>
@@ -1039,7 +1036,7 @@ export default function MembersContent() {
               <div className="px-5 py-5 flex flex-col gap-5">
                 {/* Identity */}
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-base flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-accent-soft)] flex items-center justify-center text-[var(--color-accent-strong)] font-bold text-base flex-shrink-0">
                     {detail.fullName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -1073,7 +1070,7 @@ export default function MembersContent() {
                     <div className="bg-slate-50 rounded-xl px-4 py-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-slate-500">Balance</span>
-                        <span className="text-base font-bold text-slate-800">
+                        <span className="text-base font-bold text-[var(--color-text)] font-price">
                           {formatCurrency(detail.wallet.currentBalance)}
                         </span>
                       </div>
@@ -1238,7 +1235,7 @@ export default function MembersContent() {
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(listMember)}
-                          className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 py-1 transition-colors"
+                          className="w-full text-left text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] py-1 transition-colors"
                         >
                           Edit member profile →
                         </button>

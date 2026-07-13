@@ -67,7 +67,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   function updateSession(updates: Partial<SessionData["staff"]>): void {
     const next: SessionData = {
-      token: readySession.token,
       staff: { ...readySession.staff, ...updates },
     };
     saveSession(next);

@@ -21,7 +21,7 @@ interface ButtonProps {
 // Each variant maps to a Tailwind class string
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
   primary:
-    "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm shadow-blue-200",
+    "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-strong)] active:bg-[var(--color-accent-strong)] shadow-sm shadow-[var(--color-accent-soft)]",
   secondary:
     "bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300 border border-slate-200",
   danger:
@@ -51,7 +51,7 @@ export default function Button({
 }: ButtonProps) {
   // Combine base styles + variant styles + size styles + optional extras
   const baseStyles =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed";
 
   const combinedClassName = [
     baseStyles,

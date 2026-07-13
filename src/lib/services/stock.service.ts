@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import { PAGINATION, RECORD_STATUS, STOCK_MOVEMENT_TYPES } from "@/lib/constants";
+import { LOW_STOCK_THRESHOLD, PAGINATION, RECORD_STATUS, STOCK_MOVEMENT_TYPES } from "@/lib/constants";
 import { Product, Stock, StockMovement } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
@@ -13,6 +13,24 @@ export interface StockRecord {
   productStatus:   string;
   currentQty:      number;   // ← was currentQuantity
   updatedAt:       string;
+}
+
+export interface StockAlerts {
+  outOfStockCount: number;
+  lowStockCount: number; // 0 < qty < LOW_STOCK_THRESHOLD, matching the Stock page's own "Low" badge
+}
+
+// ─── getStockAlerts ─────────────────────────────────────────────────────────
+// Counts products that are out of stock or running low, for the dashboard.
+// Thresholds mirror the badges already shown on the Stock page.
+
+export async function getStockAlerts(): Promise<StockAlerts> {
+  const [outOfStockCount, lowStockCount] = await Promise.all([
+    Stock.countDocuments({ currentQty: { $lte: 0 } }),
+    Stock.countDocuments({ currentQty: { $gt: 0, $lt: LOW_STOCK_THRESHOLD } }),
+  ]);
+
+  return { outOfStockCount, lowStockCount };
 }
 
 export async function listStock(input: {

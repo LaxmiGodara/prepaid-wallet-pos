@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { buildSuccessResponse } from "@/lib/api-response";
+import { clearAuthCookie } from "@/lib/auth-cookie";
 import { requireAuth } from "@/lib/auth-middleware";
 import { validateRuntimeConfig } from "@/lib/config";
 import { connectDB } from "@/lib/db";
@@ -16,10 +17,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await logoutStaff(staffId);
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       buildSuccessResponse("Logged out successfully.", null),
-      { status: 200 }
+      { status: 200 },
     );
+
+    clearAuthCookie(response);
+
+    return response;
   } catch (error) {
     return handleApiError(error);
   }

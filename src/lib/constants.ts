@@ -4,6 +4,12 @@ export const PAGINATION = {
   MAX_LIMIT:     100,
 } as const;
 
+// Stock quantity below which the Stock page shows a "Low" badge, and the
+// dashboard counts a product in its stock-alerts figure. Extracted here so
+// it's defined once instead of duplicated as a bare `10` across the UI and
+// the dashboard-summary aggregate.
+export const LOW_STOCK_THRESHOLD = 10;
+
 // ─── App Info ─────────────────────────────────────────────────────────────────
 export const APP_NAME    = "Prepaid Wallet POS";
 export const APP_VERSION = "1.0.0";

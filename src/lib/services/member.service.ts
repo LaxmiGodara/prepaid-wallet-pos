@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import { CARD_STATUS, PAGINATION, RECORD_STATUS } from "@/lib/constants";
-import { Member, Wallet } from "@/lib/models";
+import { Member, Wallet, type ICard, type IMember, type IWallet } from "@/lib/models";
 import {
   findCardsForMembers,
   findMemberCard,
@@ -95,9 +95,9 @@ interface UpdateMemberInput {
 // ─── computeReadiness ─────────────────────────────────────────────────────────
 
 function computeReadiness(
-  member: any,
-  wallet: any,
-  card: any,
+  member: IMember,
+  wallet: IWallet | null,
+  card: ICard | null,
 ): ReadinessStatus {
   const now = new Date();
 

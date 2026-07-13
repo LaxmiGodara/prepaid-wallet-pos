@@ -131,7 +131,7 @@ export default function DebitsContent() {
       <div className="flex-1 min-w-[200px] max-w-xs">
         <input type="search" placeholder="Search by member name..." value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+          className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
       </div>
 
       {showCreate && (
@@ -156,7 +156,7 @@ export default function DebitsContent() {
 <div className="relative">
 <input type="text" placeholder="Type member name..." value={memberQuery}
 onChange={(e) => { setMemberQuery(e.target.value); setFormErrors((p) => ({ ...p, memberId: "" })); }}
-className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
 {(memberResults.length > 0 || isSearchingMember) && (
 <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
 {isSearchingMember && <p className="px-4 py-3 text-xs text-slate-400">Searching...</p>}
@@ -179,7 +179,7 @@ className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50
           <label className="text-sm font-medium text-slate-700">Amount (₹) <span className="text-red-500">*</span></label>
           <input type="number" min="1" step="1" placeholder="Enter amount" value={amount}
             onChange={(e) => { setAmount(e.target.value); setFormErrors((p) => ({ ...p, amount: "" })); }}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
           {formErrors.amount && <p className="text-xs font-medium text-red-600">{formErrors.amount}</p>}
         </div>
 
@@ -188,7 +188,7 @@ className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50
           <label className="text-sm font-medium text-slate-700">Reason <span className="text-red-500">*</span></label>
           <input type="text" placeholder="e.g. Correction, Refund adjustment..." value={reason}
             onChange={(e) => { setReason(e.target.value); setFormErrors((p) => ({ ...p, reason: "" })); }}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
           {formErrors.reason && <p className="text-xs font-medium text-red-600">{formErrors.reason}</p>}
         </div>
 
@@ -233,7 +233,7 @@ className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50
           <thead>
             <tr>
               {["Member", "Amount", "Reason", "Balance Change", "Date"].map((h) => (
-                <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>

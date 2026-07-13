@@ -185,10 +185,10 @@ export default function CardsContent() {
         <div className="flex-1 min-w-[200px] max-w-xs">
           <input type="search" placeholder="Search by card number..." value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
         </div>
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as CardStatusFilter); setCurrentPage(1); }}
-          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer">
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer">
           <option value="">All Status</option>
           <option value={CARD_STATUS.ACTIVE}>Active</option>
           <option value={CARD_STATUS.INACTIVE}>Inactive</option>
@@ -209,20 +209,20 @@ export default function CardsContent() {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-slate-700">Member <span className="text-red-500">*</span></label>
               {selectedMember ? (
-                <div className="flex items-center justify-between rounded-xl border border-blue-300 bg-blue-50 px-4 py-2.5">
+                <div className="flex items-center justify-between rounded-xl border border-[var(--color-accent-soft-line)] bg-[var(--color-accent-soft)]/40 px-4 py-2.5">
                   <div>
                     <p className="text-sm font-medium text-slate-800">{selectedMember.fullName}</p>
                     {selectedMember.mobileNumber && <p className="text-xs text-slate-500">{selectedMember.mobileNumber}</p>}
                     <p className="text-xs text-slate-400">Balance: ₹{selectedMember.walletBalance.toLocaleString("en-IN")}</p>
                   </div>
                   <button type="button" onClick={() => { setSelectedMember(null); setMemberQuery(""); setMemberErr(""); }}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium ml-3">Change</button>
+                    className="text-xs text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] font-medium ml-3">Change</button>
                 </div>
               ) : (
                 <div className="relative">
                   <input type="text" placeholder="Type member name or mobile..." value={memberQuery}
                     onChange={(e) => { setMemberQuery(e.target.value); setMemberErr(""); }}
-                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
                   {(memberResults.length > 0 || isSearchingMember) && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
                       {isSearchingMember && <p className="px-4 py-3 text-xs text-slate-400">Searching...</p>}
@@ -246,7 +246,7 @@ export default function CardsContent() {
               <label className="text-sm font-medium text-slate-700">Expiry Date <span className="text-red-500">*</span></label>
               <input type="date" value={expiresAt} min={minDateStr}
                 onChange={(e) => { setExpiresAt(e.target.value); setExpiresAtErr(""); }}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all" />
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all" />
               {expiresAtErr && <p className="text-xs font-medium text-red-600">{expiresAtErr}</p>}
             </div>
 
@@ -293,7 +293,7 @@ export default function CardsContent() {
               <thead>
                 <tr>
                   {["Member", "Card Number", "Status", "Expires", "Assigned", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
+                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>

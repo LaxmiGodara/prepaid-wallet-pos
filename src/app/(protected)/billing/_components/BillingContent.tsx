@@ -210,7 +210,7 @@ export default function BillingContent() {
     } catch {} finally { setIsLoadingDetail(false); }
   }
 
-  const inputClass = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all";
+  const inputClass = "w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all";
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -257,7 +257,7 @@ export default function BillingContent() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-green-600">Total charged</p>
-                  <p className="text-lg font-bold text-green-800">{formatCurrency(lastBill.totalAmount)}</p>
+                  <p className="text-lg font-bold text-green-800 font-price">{formatCurrency(lastBill.totalAmount)}</p>
                 </div>
               </div>
             </div>
@@ -289,7 +289,7 @@ export default function BillingContent() {
                   </div>
                   <div className="bg-slate-50 rounded-xl px-4 py-3">
                     <p className="text-xs text-slate-500 mb-0.5">Wallet Balance</p>
-                    <p className="text-2xl font-bold text-slate-800">{formatCurrency(lookupResult.wallet.currentBalance)}</p>
+                    <p className="text-2xl font-bold text-[var(--color-text)] font-price">{formatCurrency(lookupResult.wallet.currentBalance)}</p>
                     {cart.length > 0 && (
                       <>
                         <p className="text-xs text-slate-400 mt-1">Bill total: {formatCurrency(cartTotal)}</p>
@@ -345,7 +345,7 @@ export default function BillingContent() {
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             <input type="number" min="1" defaultValue={1} id={`qty-${product.id}`}
-                              className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-300" />
+                              className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" />
                             <Button variant="primary" size="sm" onClick={() => {
                               const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
                               addToCart(product, Number(qtyInput?.value || 1));
@@ -380,7 +380,7 @@ export default function BillingContent() {
                           <td className="px-3 py-3">
                             <input type="number" min="1" value={Number.isFinite(item.quantity) ? item.quantity : ""}
                               onChange={(e) => updateCartQty(item.productId, Number(e.target.value))}
-                              className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-300" />
+                              className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" />
                           </td>
                           <td className="px-3 py-3 text-sm font-semibold text-slate-700">{formatCurrency(item.subtotal)}</td>
                           <td className="px-3 py-3">
@@ -395,7 +395,7 @@ export default function BillingContent() {
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                     <div>
                       <p className="text-sm text-slate-500">Total Amount</p>
-                      <p className="text-2xl font-bold text-slate-800">{formatCurrency(cartTotal)}</p>
+                      <p className="text-2xl font-bold text-[var(--color-text)] font-price">{formatCurrency(cartTotal)}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       {!hasEnoughBalance && (
@@ -439,11 +439,11 @@ export default function BillingContent() {
               {!isLoadingList && !listError && billList.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse min-w-[640px]">
-                    <thead><tr>{["Member", "Card", "Items", "Total", "Balance After", "Date"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>)}</tr></thead>
+                    <thead><tr>{["Member", "Card", "Items", "Total", "Balance After", "Date"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>)}</tr></thead>
                     <tbody className="divide-y divide-slate-50">
                       {billList.map((bill) => (
                         <tr key={bill.id} onClick={() => void handleViewBill(bill.id)}
-                          className={["cursor-pointer transition-colors", selectedBill?.id === bill.id ? "bg-blue-50/60" : "hover:bg-slate-50/50"].join(" ")}>
+                          className={["cursor-pointer transition-colors", selectedBill?.id === bill.id ? "bg-[var(--color-accent-soft)]/40/60" : "hover:bg-slate-50/50"].join(" ")}>
                           <td className="px-6 py-4 text-sm font-medium text-slate-800">{bill.memberName}</td>
                           <td className="px-6 py-4 text-xs font-mono text-slate-600">{bill.cardNumber}</td>
                           <td className="px-6 py-4 text-sm text-slate-500">{bill.itemCount} item{bill.itemCount !== 1 ? "s" : ""}</td>
@@ -501,7 +501,7 @@ export default function BillingContent() {
                     <div className="border-t border-slate-100 pt-3">
                       <div className="flex justify-between mb-1">
                         <span className="text-sm text-slate-500">Total</span>
-                        <span className="text-base font-bold text-slate-800">{formatCurrency(selectedBill.totalAmount)}</span>
+                        <span className="text-base font-bold text-[var(--color-text)] font-price">{formatCurrency(selectedBill.totalAmount)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-slate-400">Balance before</span>

@@ -20,7 +20,18 @@ const REQUIRED_ENV_VARS: RequiredConfig[] = [
   },
 ];
 
+// Runs on every request today (every route handler calls this before doing
+// anything else). The checks themselves are cheap — a handful of string
+// length comparisons — so the per-request cost is negligible, but re-running
+// an invariant check that can only ever change between process restarts is
+// the wrong layer for it. `hasValidated` makes every call after the first
+// (successful) one a no-op, without requiring a Next.js instrumentation hook
+// or changing any of the ~28 call sites that already call this function.
+let hasValidated = false;
+
 export function validateRuntimeConfig(): void {
+  if (hasValidated) return;
+
   const missing: string[] = [];
   const invalid: string[] = [];
 
@@ -59,4 +70,6 @@ export function validateRuntimeConfig(): void {
   if (process.env.NODE_ENV === "development") {
     console.log("✓ Runtime configuration validated");
   }
+
+  hasValidated = true;
 }

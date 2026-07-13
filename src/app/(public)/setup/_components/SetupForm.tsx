@@ -78,13 +78,27 @@ export default function SetupForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
     // We define the async function inside useEffect.
     // useEffect itself cannot be async - it must return cleanup or nothing.
     // Defining and calling an async function inside is the correct pattern.
     async function checkSetupStatus(): Promise<void> {
       try {
-        const response = await fetch("/api/auth/setup-status");
+        // Same reasoning as LoginForm's identical check: without a timeout,
+        // an unreachable database leaves this page stuck on "Loading..."
+        // forever with no way out.
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        const response = await fetch("/api/auth/setup-status", {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
         const result = await response.json();
+
+        if (!isMounted) return;
 
         // If setup is already done, redirect immediately
         // The user has no reason to be on the setup page
@@ -95,18 +109,25 @@ export default function SetupForm() {
           // because we are navigating away anyway
         }
       } catch {
-        // If the status check fails (network error, server down),
+        // If the status check fails (network error, timeout, server down),
         // we show the form anyway. The API will catch duplicates.
       }
 
       // Either setup is not done, or the check failed.
       // Either way, show the form.
-      setIsCheckingStatus(false);
+      if (isMounted) {
+        setIsCheckingStatus(false);
+      }
     }
 
     // void discards the Promise returned by checkSetupStatus().
     // useEffect does not await anything - void makes this explicit.
     void checkSetupStatus();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Empty dependency array: run once on mount.
   // router is stable across renders so omitting it is safe here.

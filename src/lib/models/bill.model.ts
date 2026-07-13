@@ -162,7 +162,6 @@ billSchema.pre("save", async function () {
   for (let attempt = 0; attempt < 5; attempt++) {
     const random = Math.floor(Math.random() * 9000 + 1000).toString();
     const candidate = `BILL-${datePart}-${random}`;
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     const existing = await Bill.findOne({ billNumber: candidate });
     if (!existing) {
       this.billNumber = candidate;
@@ -173,7 +172,10 @@ billSchema.pre("save", async function () {
   throw new Error("Could not generate a unique bill number. Please retry.");
 });
 
-billSchema.index({ billNumber: 1 }, { unique: true });
+// billNumber's unique index is already created by `unique: true` on the
+// field itself, above — this used to also call
+// billSchema.index({ billNumber: 1 }, { unique: true }), which Mongoose
+// correctly warned about as a duplicate.
 billSchema.index({ memberId: 1, createdAt: -1 });
 billSchema.index({ cashierId: 1, createdAt: -1 });
 billSchema.index({ createdAt: -1 });

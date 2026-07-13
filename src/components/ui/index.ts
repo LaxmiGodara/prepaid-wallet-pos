@@ -8,3 +8,5 @@ export { default as Badge, getStatusVariant, getRoleVariant } from "./Badge";
 export type { BadgeVariant } from "./Badge";
 export { default as SectionCard } from "./SectionCard";
 export { default as PageHeader } from "./PageHeader";
+export { default as StatCard } from "./StatCard";
+export type { StatTone } from "./StatCard";

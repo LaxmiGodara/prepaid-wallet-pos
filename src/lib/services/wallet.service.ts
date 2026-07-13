@@ -14,6 +14,34 @@ export interface WalletRecord {
   updatedAt: string;
 }
 
+export interface WalletsSummary {
+  totalBalance: number;
+  activeCount: number;
+  inactiveCount: number;
+}
+
+// ─── getWalletsSummary ──────────────────────────────────────────────────────
+// Aggregates the total value currently held across all member wallets, plus
+// a breakdown of active vs. inactive wallet counts. Used by the dashboard to
+// give the business owner a live "money in wallets" figure.
+
+export async function getWalletsSummary(): Promise<WalletsSummary> {
+  const [totals, activeCount] = await Promise.all([
+    Wallet.aggregate<{ _id: null; totalBalance: number }>([
+      { $group: { _id: null, totalBalance: { $sum: "$currentBalance" } } },
+    ]),
+    Wallet.countDocuments({ status: RECORD_STATUS.ACTIVE }),
+  ]);
+
+  const totalWallets = await Wallet.countDocuments({});
+
+  return {
+    totalBalance: totals[0]?.totalBalance ?? 0,
+    activeCount,
+    inactiveCount: totalWallets - activeCount,
+  };
+}
+
 interface ListWalletsInput {
   page: number;
   limit: number;

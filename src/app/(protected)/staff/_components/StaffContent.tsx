@@ -549,7 +549,7 @@ export default function StaffContent() {
             placeholder="Search by name or username..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 bg-white transition-all"
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] bg-white transition-all"
           />
         </div>
 
@@ -560,7 +560,7 @@ export default function StaffContent() {
             setRoleFilter(e.target.value);
             setCurrentPage(1);
           }}
-          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer"
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer"
         >
           <option value="">All Roles</option>
           <option value={STAFF_ROLES.SUPER_ADMIN}>Super Admin</option>
@@ -575,7 +575,7 @@ export default function StaffContent() {
             setStatusFilter(e.target.value);
             setCurrentPage(1);
           }}
-          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all cursor-pointer"
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all cursor-pointer"
         >
           <option value="">All Status</option>
           <option value={RECORD_STATUS.ACTIVE}>Active</option>
@@ -664,7 +664,7 @@ export default function StaffContent() {
                 name="role"
                 value={createData.role}
                 onChange={handleCreateChange}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all"
               >
                 {creatableRoles.map((r) => (
                   <option key={r} value={r}>
@@ -743,7 +743,7 @@ export default function StaffContent() {
                 name="role"
                 value={editData.role}
                 onChange={handleEditChange}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all"
               >
                 {editableRoles.map((r) => (
                   <option key={r} value={r}>
@@ -968,7 +968,7 @@ export default function StaffContent() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap"
+                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
                       >
                         {h}
                       </th>
@@ -987,7 +987,7 @@ export default function StaffContent() {
                         className={[
                           "transition-colors duration-100 cursor-pointer",
                           isSelected
-                            ? "bg-blue-50/60 hover:bg-blue-50/80"
+                            ? "bg-[var(--color-accent-soft)]/40/60 hover:bg-[var(--color-accent-soft)]/40/80"
                             : "hover:bg-slate-50/50",
                         ].join(" ")}
                       >
@@ -996,7 +996,7 @@ export default function StaffContent() {
                             <p className="text-sm font-medium text-slate-800 leading-tight">
                               {staff.fullName}
                               {staff.id === session.staff.id && (
-                                <span className="ml-2 text-xs font-normal text-blue-500">
+                                <span className="ml-2 text-xs font-normal text-[var(--color-accent-strong)]">
                                   (you)
                                 </span>
                               )}
@@ -1038,7 +1038,7 @@ export default function StaffContent() {
                                   });
                                 }}
                                 disabled={!!togglingId}
-                                className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40 transition-colors"
+                                className="text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] disabled:opacity-40 transition-colors"
                               >
                                 Edit
                               </button>
@@ -1149,14 +1149,14 @@ export default function StaffContent() {
             <div className="px-5 py-5 flex flex-col gap-4">
               {/* Avatar + name */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-base flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[var(--color-accent-soft)] flex items-center justify-center text-[var(--color-accent-strong)] font-bold text-base flex-shrink-0">
                   {selectedStaff.fullName.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">
                     {selectedStaff.fullName}
                     {selectedStaff.id === session.staff.id && (
-                      <span className="ml-1 text-xs font-normal text-blue-500">
+                      <span className="ml-1 text-xs font-normal text-[var(--color-accent-strong)]">
                         (you)
                       </span>
                     )}
@@ -1228,7 +1228,7 @@ export default function StaffContent() {
                           role: selectedStaff.role,
                         });
                       }}
-                      className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 py-1 transition-colors"
+                      className="w-full text-left text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] py-1 transition-colors"
                     >
                       Edit profile →
                     </button>

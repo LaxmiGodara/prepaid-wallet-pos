@@ -9,7 +9,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
     <div className="h-screen overflow-hidden grid grid-cols-[260px_1fr]">
       <Sidebar />
 
-      <main className="overflow-y-auto bg-slate-50">{children}</main>
+      <main className="overflow-y-auto bg-[var(--color-paper)]">
+        {children}
+      </main>
     </div>
   );
 }

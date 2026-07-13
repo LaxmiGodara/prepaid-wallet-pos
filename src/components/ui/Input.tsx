@@ -46,7 +46,7 @@ export default function Input({
   // Input border changes colour based on error state
   const inputBorderStyle = error
     ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-    : "border-slate-300 focus:border-blue-400 focus:ring-blue-100";
+    : "border-slate-300 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)]";
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>

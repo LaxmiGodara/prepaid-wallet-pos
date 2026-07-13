@@ -12,7 +12,7 @@ Designed as an internal business application, the system streamlines prepaid wal
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
 - Project Overview
 - Features
@@ -31,7 +31,7 @@ Designed as an internal business application, the system streamlines prepaid wal
 
 ---
 
-#  Project Overview
+# Project Overview
 
 The **Prepaid Wallet POS System** replaces traditional cash-based billing with a secure prepaid wallet ecosystem.
 
@@ -41,7 +41,7 @@ The application combines customer management, wallet management, inventory, bill
 
 ---
 
-#  Features
+# Features
 
 ## Authentication
 
@@ -128,7 +128,7 @@ The application combines customer management, wallet management, inventory, bill
 
 ---
 
-#  Business Workflow
+# Business Workflow
 
 ```text
 Administrator Login
@@ -172,7 +172,7 @@ Reports
 
 ---
 
-#  Technology Stack
+# Technology Stack
 
 ## Frontend
 
@@ -212,7 +212,7 @@ Reports
 
 ---
 
-# 🏗 System Architecture
+# System Architecture
 
 ```
                 Client
@@ -232,7 +232,7 @@ Reports
 
 ---
 
-#  Core Modules
+# Core Modules
 
 - Authentication
 - Dashboard
@@ -284,7 +284,7 @@ prepaid-wallet-pos/
 
 ---
 
-# ⚙️ Prerequisites
+# Prerequisites
 
 Before running the project, ensure the following are installed:
 
@@ -295,7 +295,7 @@ Before running the project, ensure the following are installed:
 
 ---
 
-#  Getting Started
+# Getting Started
 
 ## 1. Clone the Repository
 
@@ -351,7 +351,7 @@ NODE_ENV=development
 
 ---
 
-# ▶ Running the Application
+# Running the Application
 
 Start the development server:
 
@@ -367,7 +367,7 @@ http://localhost:3000
 
 ---
 
-# 🏗 Production Build
+# Production Build
 
 Create a production build:
 
@@ -383,18 +383,18 @@ npm start
 
 ---
 
-#  Available Scripts
+# Available Scripts
 
-| Command | Description |
-|----------|-------------|
-| npm run dev | Start development server |
-| npm run build | Create production build |
-| npm start | Run production server |
-| npm run lint | Run ESLint |
+| Command       | Description              |
+| ------------- | ------------------------ |
+| npm run dev   | Start development server |
+| npm run build | Create production build  |
+| npm start     | Run production server    |
+| npm run lint  | Run ESLint               |
 
 ---
 
-#  Deployment
+# Deployment
 
 The application is optimized for deployment on **Vercel**.
 
@@ -407,7 +407,7 @@ Deployment steps:
 
 ---
 
-#  Security Features
+# Security Features
 
 The application includes several security mechanisms:
 
@@ -422,7 +422,7 @@ The application includes several security mechanisms:
 
 ---
 
-#  Core Business Workflow
+# Core Business Workflow
 
 ```text
 Login
@@ -460,7 +460,7 @@ Reports
 
 ---
 
-#  API Overview
+# API Overview
 
 The application exposes RESTful API endpoints for core business operations.
 
@@ -543,7 +543,7 @@ The application exposes RESTful API endpoints for core business operations.
 
 ---
 
-#  Screenshots
+# Screenshots
 
 ### Login
 
@@ -593,7 +593,7 @@ The application exposes RESTful API endpoints for core business operations.
 
 ---
 
-# 🎯 Design Principles
+# Design Principles
 
 The application has been designed around the following principles:
 
@@ -609,7 +609,7 @@ The application has been designed around the following principles:
 
 ---
 
-# 💡 Future Enhancements
+# Future Enhancements
 
 Potential improvements for future versions include:
 
@@ -629,7 +629,7 @@ Potential improvements for future versions include:
 
 ---
 
-# 🤝 Contributing
+# Contributing
 
 Contributions are welcome.
 
@@ -658,7 +658,7 @@ git push origin feature/new-feature
 
 ---
 
-# 📈 Project Highlights
+# Project Highlights
 
 - Full-Stack Next.js Application
 - TypeScript Throughout the Project
@@ -676,7 +676,7 @@ git push origin feature/new-feature
 
 ---
 
-# 📋 Development Practices
+# Development Practices
 
 This project follows modern software engineering practices including:
 
@@ -691,7 +691,7 @@ This project follows modern software engineering practices including:
 
 ---
 
-# 📚 Documentation
+# Documentation
 
 Project documentation is available in the `docs` directory.
 
@@ -700,10 +700,9 @@ Project documentation is available in the `docs` directory.
 
 ---
 
-
 ---
 
-# 👨‍💻 Author
+# Author
 
 **Laxmi Godara**
 
@@ -711,7 +710,7 @@ Full Stack Developer
 
 ---
 
-# 🌟 Acknowledgements
+# Acknowledgements
 
 Built using:
 
@@ -726,16 +725,8 @@ Built using:
 
 ---
 
-
-
-# 📬 Contact
+# Contact
 
 For questions, suggestions, or collaboration opportunities, feel free to connect through GitHub.
 
 ---
-
-## Final Notes
-
-The **Prepaid Wallet POS System** is a production-oriented business application developed to simplify prepaid wallet operations through secure authentication, efficient member management, automated inventory control, wallet-based billing, and comprehensive financial reporting.
-
-The application demonstrates modern full-stack development practices using **Next.js**, **TypeScript**, **MongoDB**, and a feature-based architecture, making it suitable for real-world business environments and as a showcase project for professional portfolios.

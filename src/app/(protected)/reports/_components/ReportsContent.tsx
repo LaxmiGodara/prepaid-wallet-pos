@@ -75,7 +75,7 @@ export default function ReportsContent() {
     void fetchReport(from, to);
   }
 
-  const inputClass = "rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-blue-400 focus:ring-blue-100 transition-all";
+  const inputClass = "rounded-xl border border-slate-300 px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent-soft)] transition-all";
 
   return (
     <div className="p-6 flex flex-col gap-6">
@@ -109,7 +109,7 @@ export default function ReportsContent() {
             {[
               { label: "Total Recharges",     value: formatCurrency(reportData.summary.totalRechargeAmount), sub: `${reportData.summary.totalRecharges} transactions`, color: "text-green-700" },
               { label: "Total Billed",         value: formatCurrency(reportData.summary.totalBillAmount),     sub: `${reportData.summary.totalBills} bills`,           color: "text-red-600"   },
-              { label: "Net Flow",             value: formatCurrency(reportData.summary.netFlow),             sub: "Recharges minus bills",                            color: reportData.summary.netFlow >= 0 ? "text-blue-700" : "text-amber-700" },
+              { label: "Net Flow",             value: formatCurrency(reportData.summary.netFlow),             sub: "Recharges minus bills",                            color: reportData.summary.netFlow >= 0 ? "text-[var(--color-accent-strong)]" : "text-amber-700" },
             ].map(({ label, value, sub, color }) => (
               <div key={label} className="bg-white rounded-2xl border border-slate-200 px-5 py-5">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">{label}</p>
@@ -131,7 +131,7 @@ export default function ReportsContent() {
                   <thead>
                     <tr>
                       {["Date", "Recharges", "Recharge Amount", "Bills", "Billed Amount", "Net Flow"].map((h) => (
-                        <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100 whitespace-nowrap">{h}</th>
+                        <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -143,7 +143,7 @@ export default function ReportsContent() {
                         <td className="px-6 py-4 text-sm font-semibold text-green-700">{formatCurrency(row.rechargeTotal)}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{row.billCount}</td>
                         <td className="px-6 py-4 text-sm font-semibold text-red-600">{formatCurrency(row.billTotal)}</td>
-                        <td className={["px-6 py-4 text-sm font-semibold", row.netFlow >= 0 ? "text-blue-700" : "text-amber-600"].join(" ")}>
+                        <td className={["px-6 py-4 text-sm font-semibold", row.netFlow >= 0 ? "text-[var(--color-accent-strong)]" : "text-amber-600"].join(" ")}>
                           {row.netFlow >= 0 ? "+" : ""}{formatCurrency(row.netFlow)}
                         </td>
                       </tr>
@@ -157,7 +157,7 @@ export default function ReportsContent() {
                       <td className="px-6 py-3 text-sm font-bold text-green-700">{formatCurrency(reportData.summary.totalRechargeAmount)}</td>
                       <td className="px-6 py-3 text-sm font-bold text-slate-700">{reportData.summary.totalBills}</td>
                       <td className="px-6 py-3 text-sm font-bold text-red-600">{formatCurrency(reportData.summary.totalBillAmount)}</td>
-                      <td className={["px-6 py-3 text-sm font-bold", reportData.summary.netFlow >= 0 ? "text-blue-700" : "text-amber-600"].join(" ")}>
+                      <td className={["px-6 py-3 text-sm font-bold", reportData.summary.netFlow >= 0 ? "text-[var(--color-accent-strong)]" : "text-amber-600"].join(" ")}>
                         {reportData.summary.netFlow >= 0 ? "+" : ""}{formatCurrency(reportData.summary.netFlow)}
                       </td>
                     </tr>
@@ -173,7 +173,7 @@ export default function ReportsContent() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr>{["Rank", "Member", "Total Spent", "Bills"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50/80 border-b border-slate-100">{h}</th>)}</tr>
+                    <tr>{["Rank", "Member", "Total Spent", "Bills"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100">{h}</th>)}</tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {reportData.topMembers.map((member, idx) => (

@@ -7,6 +7,8 @@ export interface IWallet extends Document {
   status: string;
   createdBy: mongoose.Types.ObjectId;
   updatedBy: mongoose.Types.ObjectId | null;
+  isDeleted: boolean;
+  deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +47,21 @@ const walletSchema = new Schema<IWallet>(
       ref: "Staff",
       default: null,
     },
+
+    // Added for consistency with Member/Staff/Card (all of which soft-delete).
+    // Nothing currently sets these — there is no wallet-delete flow yet — but
+    // the fields exist so that a future "delete member" cascade can soft-delete
+    // the owning wallet the same way it soft-deletes the member, instead of
+    // leaving an orphaned active-looking wallet behind.
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -52,7 +69,9 @@ const walletSchema = new Schema<IWallet>(
   },
 );
 
-walletSchema.index({ memberId: 1 }, { unique: true });
+// memberId's unique index is already created by `unique: true` on the field
+// itself, above — an explicit walletSchema.index({ memberId: 1 }) here would
+// just be a duplicate (this used to be here and Mongoose warned about it).
 
 export const Wallet =
   (mongoose.models.Wallet as mongoose.Model<IWallet>) ||

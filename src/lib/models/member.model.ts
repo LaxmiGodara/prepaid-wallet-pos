@@ -75,6 +75,13 @@ memberSchema.index({ fullName: 1 });
 
 memberSchema.index({ status: 1, isDeleted: 1 });
 
+// Supports mobile-number lookups/search without a full collection scan.
+// Not unique: multiple members (e.g. family members) may legitimately share
+// a household phone number — if the business rule should be "one member per
+// number", change this to `{ unique: true, sparse: true }` (sparse so the
+// many `null` values for members without a number don't collide).
+memberSchema.index({ mobileNumber: 1 });
+
 export const Member =
   (mongoose.models.Member as mongoose.Model<IMember>) ||
   mongoose.model<IMember>("Member", memberSchema);
