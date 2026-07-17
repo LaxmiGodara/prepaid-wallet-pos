@@ -118,7 +118,7 @@ export default function WalletsContent() {
               <thead>
                 <tr>
                   {["Member", "Balance", "Status", "Last Updated", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
+                    <th key={h} className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -131,7 +131,7 @@ export default function WalletsContent() {
                     <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                       {new Date(wallet.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       <button type="button" onClick={() => void handleToggle(wallet)} disabled={togglingId === wallet.id}
                         className={["text-xs font-medium transition-colors disabled:opacity-40", wallet.status === RECORD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>
                         {togglingId === wallet.id ? "Updating..." : wallet.status === RECORD_STATUS.ACTIVE ? "Deactivate" : "Activate"}

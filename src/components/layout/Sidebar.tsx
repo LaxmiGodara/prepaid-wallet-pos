@@ -15,8 +15,6 @@ import {
   ArrowLeftRight,
   Boxes,
   BarChart3,
-  UserCircle,
-  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,7 +39,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 };
 
 export default function Sidebar() {
-  const { session, logout, hasRole } = useSession();
+  const { session, hasRole } = useSession();
   const pathname = usePathname();
 
   function isActive(href: string): boolean {
@@ -149,33 +147,6 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
-
-      <div
-        className="px-3 pb-5 pt-3"
-        style={{ borderTop: "1px solid var(--color-ink-line)" }}
-      >
-        <Link
-          href="/account"
-          className={[
-            "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 mb-1",
-            isActive("/account")
-              ? "bg-white/10 text-white"
-              : "text-white/50 hover:text-white hover:bg-white/5",
-          ].join(" ")}
-        >
-          <UserCircle size={17} strokeWidth={2} />
-          My Account
-        </Link>
-
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
-        >
-          <LogOut size={17} strokeWidth={2} />
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }

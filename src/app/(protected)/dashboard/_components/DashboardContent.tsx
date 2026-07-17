@@ -224,6 +224,7 @@ export default function DashboardContent() {
                   hint={`${summary.members.total} total enrolled`}
                   icon={IdCard}
                   tone="neutral"
+                  href="/members"
                 />
                 <StatCard
                   label="Wallet Balance"
@@ -231,6 +232,7 @@ export default function DashboardContent() {
                   hint={`${summary.wallets.activeCount} active wallets`}
                   icon={Wallet}
                   tone="positive"
+                  href="/wallets"
                 />
                 <StatCard
                   label="Today's Recharges"
@@ -238,6 +240,7 @@ export default function DashboardContent() {
                   hint={`${summary.today.totalRecharges} transaction${summary.today.totalRecharges !== 1 ? "s" : ""}`}
                   icon={RefreshCcw}
                   tone="positive"
+                  href="/recharges"
                 />
                 <StatCard
                   label="Today's Billing"
@@ -245,6 +248,7 @@ export default function DashboardContent() {
                   hint={`${summary.today.totalBills} bill${summary.today.totalBills !== 1 ? "s" : ""}`}
                   icon={Receipt}
                   tone="neutral"
+                  href="/billing"
                 />
                 <StatCard
                   label="Net Flow Today"
@@ -252,6 +256,7 @@ export default function DashboardContent() {
                   hint={netToday >= 0 ? "More in than out" : "More out than in"}
                   icon={netToday >= 0 ? TrendingUp : TrendingDown}
                   tone={netToday >= 0 ? "positive" : "negative"}
+                  href="/transactions"
                 />
                 <StatCard
                   label="Stock Alerts"
@@ -261,6 +266,7 @@ export default function DashboardContent() {
                   }
                   hint={`${summary.stockAlerts.outOfStockCount} out · ${summary.stockAlerts.lowStockCount} low`}
                   icon={AlertTriangle}
+                  href="/stock"
                   tone={
                     summary.stockAlerts.outOfStockCount > 0
                       ? "negative"

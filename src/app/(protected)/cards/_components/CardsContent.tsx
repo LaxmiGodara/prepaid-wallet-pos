@@ -293,7 +293,7 @@ export default function CardsContent() {
               <thead>
                 <tr>
                   {["Member", "Card Number", "Status", "Expires", "Assigned", "Actions"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>
+                    <th key={h} className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -305,7 +305,7 @@ export default function CardsContent() {
                     <td className="px-6 py-4"><Badge label={card.status} variant={getCardStatusVariant(card.status)} /></td>
                     <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(card.expiresAt)}</td>
                     <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(card.createdAt)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       {(card.status === CARD_STATUS.ACTIVE || card.status === CARD_STATUS.INACTIVE) ? (
                         <button type="button" onClick={() => void handleToggle(card)} disabled={togglingId === card.id}
                           className={["text-xs font-medium transition-colors disabled:opacity-40", card.status === CARD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>

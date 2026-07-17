@@ -17,12 +17,13 @@ interface LookupResult {
 
 interface ProductResult {
   id: string; productName: string; productCode: string;
-  sellingPrice: number; unit: string;
+  sellingPrice: number; unit: string; currentStock: number;
 }
 
 interface CartItem {
   productId: string; productName: string; productCode: string;
   unit: string; unitPrice: number; quantity: number; subtotal: number;
+  availableStock: number; // stock level at the time this was added — used to warn on over-selling
 }
 
 interface BillListRecord {
@@ -83,6 +84,58 @@ export default function BillingContent() {
   const [selectedBill,  setSelectedBill]  = useState<BillDetailRecord | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
+  // ── Resume an in-progress bill across navigation ──────────────────────────
+  // Without this, switching to another module (e.g. to double-check a
+  // member's card) and coming back to Billing wiped the cart and card
+  // lookup — a real problem mid-transaction. We persist the card number and
+  // cart to sessionStorage (cleared when the tab closes, unlike
+  // localStorage, since a half-finished bill shouldn't outlive the
+  // session) and restore them on mount. We deliberately do NOT persist
+  // lookupResult itself — it's re-fetched fresh on restore instead, so the
+  // wallet balance / readiness shown is never stale (e.g. if someone else
+  // billed this same member from another till in the meantime).
+  const DRAFT_KEY = "billing:draft";
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as { cardInput: string; cart: CartItem[] };
+        if (draft.cardInput) {
+          setCardInput(draft.cardInput);
+          if (draft.cart?.length) setCart(draft.cart);
+          // Re-run the lookup with fresh data rather than trusting a
+          // possibly-stale cached wallet balance/readiness.
+          void handleLookup(draft.cardInput, true);
+        }
+      }
+    } catch {
+      // Corrupt/unavailable storage — just start with a blank form.
+    } finally {
+      setHasRestoredDraft(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the draft on every change, once initial restoration has run
+  // (so we don't immediately overwrite a saved draft with an empty one
+  // during the first render).
+  useEffect(() => {
+    if (!hasRestoredDraft) return;
+    try {
+      if (cardInput.trim() || cart.length > 0) {
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ cardInput, cart }));
+      } else {
+        sessionStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {
+      // Storage unavailable (private browsing, quota, etc.) — resuming
+      // just won't work this session, which is a soft degradation, not
+      // a functional break.
+    }
+  }, [cardInput, cart, hasRestoredDraft]);
+
   // ── Product search debounce ───────────────────────────────────────────────
   useEffect(() => {
     if (!productSearch.trim() || productSearch.length < 2) { setProductResults([]); return; }
@@ -126,13 +179,15 @@ export default function BillingContent() {
   }, [activeTab, currentPage, debouncedHistSearch, fetchBills]);
 
   // ── Card Lookup ───────────────────────────────────────────────────────────
-  async function handleLookup() {
-    if (!cardInput.trim()) { setLookupError("Please enter a card number."); return; }
+  async function handleLookup(cardNumberOverride?: string, isRestoring = false) {
+    const cardNumber = cardNumberOverride ?? cardInput;
+    if (!cardNumber.trim()) { setLookupError("Please enter a card number."); return; }
     setIsLookingUp(true); setLookupError(""); setLookupResult(null);
-    setCart([]); setLastBill(null); setProcessError("");
+    if (!isRestoring) { setCart([]); setLastBill(null); }
+    setProcessError("");
     try {
       const auth = getAuthorizationHeader();
-      const p = new URLSearchParams({ cardNumber: cardInput.trim() });
+      const p = new URLSearchParams({ cardNumber: cardNumber.trim() });
       const res = await fetch(`/api/billing/lookup?${p}`, { headers: auth ? { Authorization: auth } : {} });
       const r = await res.json();
       if (!r.success) { setLookupError(r.message ?? "Card not found."); return; }
@@ -157,6 +212,7 @@ export default function BillingContent() {
         productCode: product.productCode, unit: product.unit,
         unitPrice: product.sellingPrice, quantity,
         subtotal: quantity * product.sellingPrice,
+        availableStock: product.currentStock,
       }];
     });
     setProductSearch(""); setProductResults([]);
@@ -337,13 +393,29 @@ export default function BillingContent() {
                   {(productResults.length > 0 || isSearchingProduct) && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
                       {isSearchingProduct && <p className="px-4 py-3 text-xs text-slate-400">Searching...</p>}
-                      {productResults.map((product) => (
-                        <div key={product.id} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0">
+                      {productResults.map((product) => {
+                        const isOutOfStock = product.currentStock <= 0;
+                        const isLowStock = product.currentStock > 0 && product.currentStock < 10;
+                        return (
+                        <div
+                          key={product.id}
+                          onClick={() => {
+                            const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
+                            addToCart(product, Number(qtyInput?.value || 1));
+                          }}
+                          className="flex items-center justify-between px-4 py-3 hover:bg-[var(--color-accent-soft)]/30 border-b border-slate-50 last:border-0 cursor-pointer transition-colors"
+                        >
                           <div>
                             <p className="text-sm font-medium text-slate-800">{product.productName}</p>
-                            <p className="text-xs text-slate-400">{product.productCode} · {formatCurrency(product.sellingPrice)} / {product.unit}</p>
+                            <p className="text-xs text-slate-400">
+                              {product.productCode} · {formatCurrency(product.sellingPrice)} / {product.unit}
+                              {" · "}
+                              <span className={isOutOfStock ? "text-red-500 font-medium" : isLowStock ? "text-amber-600 font-medium" : "text-slate-400"}>
+                                {isOutOfStock ? "Out of stock" : `${product.currentStock} ${product.unit} in stock`}
+                              </span>
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2 ml-4">
+                          <div className="flex items-center gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                             <input type="number" min="1" defaultValue={1} id={`qty-${product.id}`}
                               className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" />
                             <Button variant="primary" size="sm" onClick={() => {
@@ -352,7 +424,8 @@ export default function BillingContent() {
                             }}>Add</Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -370,7 +443,9 @@ export default function BillingContent() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {cart.map((item) => (
+                      {cart.map((item) => {
+                        const exceedsStock = item.quantity > item.availableStock;
+                        return (
                         <tr key={item.productId}>
                           <td className="px-3 py-3">
                             <p className="text-sm font-medium text-slate-800">{item.productName}</p>
@@ -380,16 +455,35 @@ export default function BillingContent() {
                           <td className="px-3 py-3">
                             <input type="number" min="1" value={Number.isFinite(item.quantity) ? item.quantity : ""}
                               onChange={(e) => updateCartQty(item.productId, Number(e.target.value))}
-                              className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" />
+                              className={[
+                                "w-16 rounded-lg border px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]",
+                                exceedsStock ? "border-amber-300 bg-amber-50" : "border-slate-200",
+                              ].join(" ")} />
+                            {exceedsStock && (
+                              <p className="text-[11px] text-amber-600 font-medium mt-1 whitespace-nowrap">
+                                Only {item.availableStock} in stock
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-3 text-sm font-semibold text-slate-700">{formatCurrency(item.subtotal)}</td>
                           <td className="px-3 py-3">
                             <button type="button" onClick={() => removeFromCart(item.productId)} className="text-xs text-red-400 hover:text-red-600 transition-colors">Remove</button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
+
+                  {/* Low stock summary warning */}
+                  {cart.some((i) => i.quantity > i.availableStock) && (
+                    <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                      <span className="text-amber-500 text-sm leading-none mt-0.5">⚠</span>
+                      <p className="text-xs text-amber-700">
+                        One or more items in this cart exceed the currently available stock. You can still process this bill, but stock will go negative — double-check before continuing.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Total + Process */}
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100">

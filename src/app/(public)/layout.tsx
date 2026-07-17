@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import { APP_NAME } from "@/lib/constants";
 
@@ -18,10 +18,8 @@ interface PublicLayoutProps {
 }
 
 // ─── Navigation Links ─────────────────────────────────────────────────────────
-// Defines the links shown in the left panel.
-// More links (or fewer) will be controlled by setup state from Day 6 onwards.
 
-const NAV_LINKS = [
+const ALL_NAV_LINKS = [
   { href: "/login", label: "Staff Login" },
   { href: "/setup", label: "First-Time Setup" },
 ];
@@ -29,9 +27,47 @@ const NAV_LINKS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PublicLayout({ children }: PublicLayoutProps) {
-  // usePathname reads the current browser URL path.
-  // Example: "/login", "/setup"
   const pathname = usePathname();
+
+  // Default to hiding "First-Time Setup" — the common case, once an app is
+  // actually in use, is that setup is already done. We only reveal the link
+  // once the server confirms setup genuinely hasn't happened yet, rather
+  // than flashing it on screen while the check is still in flight.
+  const [isSetupComplete, setIsSetupComplete] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function checkSetupStatus(): Promise<void> {
+      try {
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch("/api/auth/setup-status", {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const result = await response.json();
+        if (isMounted) {
+          setIsSetupComplete(Boolean(result.data?.isSetupComplete));
+        }
+      } catch {
+        // Can't confirm either way — leave the default (hidden) in place
+        // rather than showing a setup link that may no longer be valid.
+      }
+    }
+
+    void checkSetupStatus();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, []);
+
+  const navLinks = isSetupComplete
+    ? ALL_NAV_LINKS.filter((link) => link.href !== "/setup")
+    : ALL_NAV_LINKS;
 
   return (
     // Outer grid: left panel fixed width, right panel fills remaining space
@@ -56,7 +92,7 @@ export default function PublicLayout({ children }: PublicLayoutProps) {
 
         {/* Navigation links */}
         <nav className="flex flex-col gap-2">
-          {NAV_LINKS.map((link) => {
+          {navLinks.map((link) => {
             // Determine if this link is the currently active page
             const isActive = pathname === link.href;
 

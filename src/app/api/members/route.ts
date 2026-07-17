@@ -29,8 +29,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
     const search = sp.get("search") || null;
     const status = sp.get("status") || null;
+    const readyOnly = sp.get("readyOnly") === "true";
 
-    const { memberList, total } = await listMembers({ page, limit, search, status });
+    const { memberList, total } = await listMembers({ page, limit, search, status, readyOnly });
 
     return NextResponse.json(
       buildSuccessResponse(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Users, UserCheck, UserX } from "lucide-react";
 
 import {
@@ -209,6 +209,7 @@ export default function MembersContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [readyOnlyFilter, setReadyOnlyFilter] = useState(false);
 
   // ── 3. Create Form ────────────────────────────────────────────────────────
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -220,6 +221,15 @@ export default function MembersContent() {
 
   // ── 4. Edit Form ──────────────────────────────────────────────────────────
   const [editingMember, setEditingMember] = useState<MemberRecord | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editingMember && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const firstInput = editFormRef.current.querySelector("input:not([readonly])");
+      if (firstInput instanceof HTMLInputElement) firstInput.focus();
+    }
+  }, [editingMember]);
   const [editData, setEditData] = useState<EditFormData>({
     fullName: "",
     mobileNumber: "",
@@ -265,7 +275,7 @@ export default function MembersContent() {
 
   // ── Fetch List ────────────────────────────────────────────────────────────
   const fetchMembers = useCallback(
-    async (page: number, search: string, status: string): Promise<void> => {
+    async (page: number, search: string, status: string, readyOnly: boolean): Promise<void> => {
       setIsLoading(true);
       setListError("");
       try {
@@ -274,6 +284,7 @@ export default function MembersContent() {
         params.set("limit", String(PAGINATION.DEFAULT_LIMIT));
         if (search) params.set("search", search);
         if (status) params.set("status", status);
+        if (readyOnly) params.set("readyOnly", "true");
         const authHeader = getAuthorizationHeader();
         const response = await fetch(`/api/members?${params.toString()}`, {
           headers: authHeader ? { Authorization: authHeader } : {},
@@ -299,8 +310,8 @@ export default function MembersContent() {
     void fetchStats();
   }, [fetchStats]);
   useEffect(() => {
-    void fetchMembers(currentPage, debouncedSearch, statusFilter);
-  }, [currentPage, debouncedSearch, statusFilter, fetchMembers]);
+    void fetchMembers(currentPage, debouncedSearch, statusFilter, readyOnlyFilter);
+  }, [currentPage, debouncedSearch, statusFilter, readyOnlyFilter, fetchMembers]);
 
   // ── Fetch Detail ──────────────────────────────────────────────────────────
   const fetchDetail = useCallback(async (memberId: string): Promise<void> => {
@@ -335,11 +346,12 @@ export default function MembersContent() {
   }, [selectedMemberId, fetchDetail]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  const hasActiveFilters = Boolean(searchQuery || statusFilter);
+  const hasActiveFilters = Boolean(searchQuery || statusFilter || readyOnlyFilter);
 
   function handleClearFilters(): void {
     setSearchQuery("");
     setStatusFilter("");
+    setReadyOnlyFilter(false);
     setCurrentPage(1);
   }
 
@@ -411,7 +423,7 @@ export default function MembersContent() {
       }
       closeAllPanels();
       handleClearFilters();
-      void fetchMembers(1, "", "");
+      void fetchMembers(1, "", "", false);
       void fetchStats(); // refresh counts after new enrolment
     } catch {
       setCreateRequestError("Unable to reach the server.");
@@ -595,6 +607,28 @@ export default function MembersContent() {
           <option value={RECORD_STATUS.ACTIVE}>Active</option>
           <option value={RECORD_STATUS.INACTIVE}>Inactive</option>
         </select>
+        <button
+          type="button"
+          onClick={() => {
+            setReadyOnlyFilter((prev) => !prev);
+            setCurrentPage(1);
+          }}
+          aria-pressed={readyOnlyFilter}
+          className={[
+            "flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all cursor-pointer",
+            readyOnlyFilter
+              ? "border-[var(--color-accent-soft-line)] bg-[var(--color-accent-soft)] text-[var(--color-accent-strong)]"
+              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50",
+          ].join(" ")}
+        >
+          <span
+            className={[
+              "w-1.5 h-1.5 rounded-full",
+              readyOnlyFilter ? "bg-[var(--color-accent-strong)]" : "bg-slate-300",
+            ].join(" ")}
+          />
+          Ready to bill
+        </button>
         {hasActiveFilters && (
           <Button variant="secondary" size="sm" onClick={handleClearFilters}>
             Clear Filters
@@ -679,6 +713,7 @@ export default function MembersContent() {
 
       {/* Edit Form */}
       {editingMember && (
+        <div ref={editFormRef}>
         <SectionCard title={`Edit: ${editingMember.fullName}`}>
           <form
             onSubmit={handleEditSubmit}
@@ -747,6 +782,7 @@ export default function MembersContent() {
             </div>
           </form>
         </SectionCard>
+        </div>
       )}
 
       <div
@@ -761,7 +797,7 @@ export default function MembersContent() {
               variant="secondary"
               size="sm"
               onClick={() =>
-                void fetchMembers(currentPage, debouncedSearch, statusFilter)
+                void fetchMembers(currentPage, debouncedSearch, statusFilter, readyOnlyFilter)
               }
               disabled={isLoading}
             >
@@ -787,7 +823,7 @@ export default function MembersContent() {
                 size="sm"
                 onClick={() => {
                   setListError("");
-                  void fetchMembers(currentPage, debouncedSearch, statusFilter);
+                  void fetchMembers(currentPage, debouncedSearch, statusFilter, readyOnlyFilter);
                 }}
               >
                 Try Again
@@ -839,7 +875,7 @@ export default function MembersContent() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
+                        className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}
                       >
                         {h}
                       </th>
@@ -913,10 +949,10 @@ export default function MembersContent() {
                           {formatDate(member.createdAt)}
                         </td>
                         <td
-                          className="px-6 py-4"
+                          className="px-6 py-4 text-center"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(member)}

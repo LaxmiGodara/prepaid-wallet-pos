@@ -3,6 +3,7 @@
 // to surface a single business figure with an icon and optional trend/tone.
 
 import React from "react";
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
 export type StatTone = "neutral" | "positive" | "negative" | "warning";
@@ -14,6 +15,10 @@ interface StatCardProps {
   tone?: StatTone;
   hint?: string;
   className?: string;
+  // Optional destination — when set, the whole card becomes a link to the
+  // module the figure came from (e.g. "Active Members" → /members), so a
+  // business-overview number acts as a shortcut instead of a dead end.
+  href?: string;
 }
 
 const toneStyles: Record<StatTone, { fg: string; bg: string }> = {
@@ -30,13 +35,12 @@ export default function StatCard({
   tone = "neutral",
   hint,
   className = "",
+  href,
 }: StatCardProps) {
   const { fg, bg } = toneStyles[tone];
 
-  return (
-    <div
-      className={`bg-[var(--color-surface)] rounded-2xl border border-[var(--color-line)] px-5 py-4 flex items-start justify-between gap-3 hover:shadow-[0_4px_14px_rgba(20,16,10,0.06)] hover:-translate-y-0.5 transition-all duration-200 ${className}`}
-    >
+  const content = (
+    <>
       <div className="min-w-0">
         <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5 truncate">
           {label}
@@ -60,6 +64,19 @@ export default function StatCard({
           <Icon size={18} strokeWidth={2} />
         </span>
       )}
-    </div>
+    </>
   );
+
+  const cardClassName = `bg-[var(--color-surface)] rounded-2xl border border-[var(--color-line)] px-5 py-4 flex items-start justify-between gap-3 hover:shadow-[0_4px_14px_rgba(20,16,10,0.06)] hover:-translate-y-0.5 transition-all duration-200 ${href ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2" : ""} ${className}`;
+
+  if (href) {
+    return (
+      <Link href={href} className={cardClassName}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={cardClassName}>{content}</div>;
 }
+

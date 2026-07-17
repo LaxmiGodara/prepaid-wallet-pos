@@ -73,6 +73,7 @@ interface ListMembersInput {
   limit: number;
   search: string | null;
   status: string | null;
+  readyOnly: boolean;
 }
 
 interface ListMembersResult {
@@ -112,6 +113,31 @@ function computeReadiness(
 
   const isReady = Object.values(checks).every(Boolean);
   return { isReady, checks };
+}
+
+// ─── toMemberRecord ─────────────────────────────────────────────────────────
+// Shared by both branches of listMembers (normal and readyOnly) so the
+// member/wallet/card → MemberRecord mapping is defined in exactly one place.
+
+function toMemberRecord(
+  m: IMember,
+  wallet: IWallet | null,
+  card: ICard | null,
+): MemberRecord {
+  const { isReady } = computeReadiness(m, wallet, card);
+
+  return {
+    id: m._id.toString(),
+    fullName: m.fullName,
+    mobileNumber: m.mobileNumber,
+    referenceDetails: m.referenceDetails,
+    status: m.status,
+    walletId: wallet?._id.toString() ?? "",
+    walletBalance: wallet?.currentBalance ?? 0,
+    isReady, // ← computed from all three documents
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  };
 }
 
 // ─── validateCreateMemberInput ─────────────────────────────────────────────────
@@ -160,7 +186,6 @@ export async function listMembers(
 ): Promise<ListMembersResult> {
   const page = Math.max(1, input.page);
   const limit = Math.min(Math.max(1, input.limit), PAGINATION.MAX_LIMIT);
-  const skip = (page - 1) * limit;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filter: Record<string, any> = { isDeleted: false };
@@ -174,6 +199,41 @@ export async function listMembers(
   }
 
   if (input.status) filter.status = input.status;
+
+  if (input.readyOnly) {
+    // "Ready to bill" isn't a stored field — it's derived from three joined
+    // collections (member + wallet + card), so filtering by it correctly
+    // means computing it for every matching member first, THEN paginating
+    // the filtered set, rather than paginating at the database level like
+    // the normal path below. This fetches the full filtered member set in
+    // one go; fine at this app's scale, but would need a materialized
+    // "isReady" field kept in sync (e.g. via a background job) if the
+    // member list grows into the tens of thousands.
+    const allMembers = await Member.find(filter).sort({ createdAt: -1 });
+    const allMemberIds = allMembers.map((m) => m._id);
+
+    const [wallets, cardMap] = await Promise.all([
+      Wallet.find({ memberId: { $in: allMemberIds } }),
+      findCardsForMembers(allMemberIds),
+    ]);
+    const walletMap = new Map(wallets.map((w) => [w.memberId.toString(), w]));
+
+    const readyRecords = allMembers
+      .map((m) => {
+        const wallet = walletMap.get(m._id.toString()) ?? null;
+        const card = cardMap.get(m._id.toString()) ?? null;
+        return toMemberRecord(m, wallet, card);
+      })
+      .filter((record) => record.isReady);
+
+    const total = readyRecords.length;
+    const start = (page - 1) * limit;
+    const memberList = readyRecords.slice(start, start + limit);
+
+    return { memberList, total };
+  }
+
+  const skip = (page - 1) * limit;
 
   // Query 1+2: members and total count in parallel
   const [members, total] = await Promise.all([
@@ -195,20 +255,7 @@ export async function listMembers(
   const memberList: MemberRecord[] = members.map((m) => {
     const wallet = walletMap.get(m._id.toString()) ?? null;
     const card = cardMap.get(m._id.toString()) ?? null;
-    const { isReady } = computeReadiness(m, wallet, card);
-
-    return {
-      id: m._id.toString(),
-      fullName: m.fullName,
-      mobileNumber: m.mobileNumber,
-      referenceDetails: m.referenceDetails,
-      status: m.status,
-      walletId: wallet?._id.toString() ?? "",
-      walletBalance: wallet?.currentBalance ?? 0,
-      isReady, // ← computed from all three documents
-      createdAt: m.createdAt.toISOString(),
-      updatedAt: m.updatedAt.toISOString(),
-    };
+    return toMemberRecord(m, wallet, card);
   });
 
   return { memberList, total };

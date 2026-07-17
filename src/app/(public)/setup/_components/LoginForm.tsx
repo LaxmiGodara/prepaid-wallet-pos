@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button, Input, SectionCard } from "@/components/ui";
-import { clearSession, getSession, saveSession } from "@/lib/auth-storage";
+import { getSession, saveSession } from "@/lib/auth-storage";
 import type { SessionData } from "@/types";
 
 interface FormData {
@@ -68,42 +68,11 @@ export default function LoginForm() {
           return;
         }
 
-        // IMPORTANT: we deliberately do NOT trust getSession() (the cached
-        // localStorage profile) on its own to decide whether to redirect to
-        // /dashboard. That cache can outlive the actual cookie behind it —
-        // e.g. after switching databases, after the cookie expires, or after
-        // clearing cookies without also clearing localStorage. Redirecting
-        // on stale cache alone caused a real bug here: this page sends the
-        // user to /dashboard based on the stale cache, proxy.ts finds no
-        // valid cookie there and bounces them straight back to /login,
-        // which reads the same stale cache again — an infinite redirect
-        // loop that looks exactly like a page stuck loading forever.
-        //
-        // Instead, only redirect once the server actually confirms the
-        // cookie is valid via /api/auth/me — the same check protected
-        // pages use (see useAuthSession.ts).
-        if (getSession()?.staff) {
-          const meController = new AbortController();
-          const meTimeoutId = setTimeout(() => meController.abort(), 8000);
+        const existingSession = getSession();
 
-          const meResponse = await fetch("/api/auth/me", {
-            signal: meController.signal,
-          });
-          clearTimeout(meTimeoutId);
-
-          if (!isMounted) return;
-
-          if (meResponse.ok) {
-            const meResult = await meResponse.json();
-            saveSession({ staff: meResult.data });
-            router.replace("/dashboard");
-            return;
-          }
-
-          // The cookie is gone/invalid but we had a stale cached profile —
-          // clear it so this check doesn't keep tripping on the same stale
-          // data on a future visit to this page.
-          clearSession();
+        if (existingSession?.staff) {
+          router.replace("/dashboard");
+          return;
         }
       } catch {
         // Network error, timeout, or the server is unreachable — fall

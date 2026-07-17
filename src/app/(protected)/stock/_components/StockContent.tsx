@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, PageHeader, SectionCard } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
 import {
@@ -104,6 +104,19 @@ export default function StockContent() {
     void fetchList(currentPage, debouncedSearch);
   }, [currentPage, debouncedSearch, fetchList]);
 
+  const adjustFormRef = useRef<HTMLDivElement>(null);
+
+  // Same fix as the Products module's Edit form: clicking "Adjust Stock" on
+  // a row far down a long table opened this panel above the table,
+  // off-screen — nothing visibly happened without scrolling up manually.
+  useEffect(() => {
+    if (adjustingStock && adjustFormRef.current) {
+      adjustFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const firstInput = adjustFormRef.current.querySelector("input, select");
+      if (firstInput instanceof HTMLElement) firstInput.focus();
+    }
+  }, [adjustingStock]);
+
   function openAdjust(stock: StockRecord) {
     setAdjustingStock(stock);
     setAdjType(STOCK_MOVEMENT_TYPES.PURCHASE);
@@ -195,6 +208,7 @@ export default function StockContent() {
 
       {/* Adjust Panel */}
       {adjustingStock && (
+        <div ref={adjustFormRef}>
         <SectionCard title={`Adjust Stock: ${adjustingStock.productName}`}>
           <p className="text-sm text-slate-500 mb-4">
             Current stock:{" "}
@@ -279,6 +293,7 @@ export default function StockContent() {
             </div>
           </form>
         </SectionCard>
+        </div>
       )}
 
       {/* Stock Table */}
@@ -342,7 +357,7 @@ export default function StockContent() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
+                      className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}
                     >
                       {h}
                     </th>
@@ -403,7 +418,7 @@ export default function StockContent() {
                         year: "numeric",
                       })}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       <button
                         type="button"
                         onClick={() => openAdjust(s)}

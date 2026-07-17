@@ -11,7 +11,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     validateRuntimeConfig(); await connectDB();
     const actor = await requireAuth(request);
-    requireRole(actor, [STAFF_ROLES.SUPER_ADMIN, STAFF_ROLES.ADMIN]);
+    // GET is read-only and Cashiers need it for the billing product picker
+    // (searching products to add to a cart) — POST below stays Admin-only.
+    requireRole(actor, [STAFF_ROLES.SUPER_ADMIN, STAFF_ROLES.ADMIN, STAFF_ROLES.CASHIER]);
     const sp = request.nextUrl.searchParams;
     const page   = Math.max(1, parseInt(sp.get("page") ?? "1", 10));
     const limit  = Math.min(Math.max(1, parseInt(sp.get("limit") ?? String(PAGINATION.DEFAULT_LIMIT), 10)), PAGINATION.MAX_LIMIT);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   Badge,
@@ -146,6 +146,15 @@ export default function StaffContent() {
 
   // ── 3. Edit Form State ────────────────────────────────────────────────────
   const [editingStaff, setEditingStaff] = useState<StaffRecord | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editingStaff && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const firstInput = editFormRef.current.querySelector("input:not([readonly])");
+      if (firstInput instanceof HTMLInputElement) firstInput.focus();
+    }
+  }, [editingStaff]);
   const [editData, setEditData] = useState<EditFormData>({
     fullName: "",
     role: "",
@@ -159,6 +168,13 @@ export default function StaffContent() {
 
   // ── 5. Reset Password State ───────────────────────────────────────────────
   const [resetTarget, setResetTarget] = useState<StaffRecord | null>(null);
+  const resetFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (resetTarget && resetFormRef.current) {
+      resetFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [resetTarget]);
   const [resetData, setResetData] = useState<ResetFormData>({
     newPassword: "",
     confirmNewPassword: "",
@@ -711,6 +727,7 @@ export default function StaffContent() {
 
       {/* Edit Form Panel */}
       {editingStaff && (
+        <div ref={editFormRef}>
         <SectionCard title={`Edit: ${editingStaff.fullName}`}>
           <form
             onSubmit={handleEditSubmit}
@@ -784,10 +801,12 @@ export default function StaffContent() {
             </div>
           </form>
         </SectionCard>
+        </div>
       )}
 
       {/* Reset Password Panel */}
       {resetTarget && (
+        <div ref={resetFormRef}>
         <SectionCard title={`Reset Password: ${resetTarget.fullName}`}>
           <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
             <p className="text-sm text-amber-800 font-medium">
@@ -853,6 +872,7 @@ export default function StaffContent() {
             </div>
           </form>
         </SectionCard>
+        </div>
       )}
 
       {/* Table + Detail Panel Layout - NEW ON DAY 15 */}
@@ -968,7 +988,7 @@ export default function StaffContent() {
                     ].map((h) => (
                       <th
                         key={h}
-                        className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap"
+                        className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}
                       >
                         {h}
                       </th>
@@ -1022,11 +1042,11 @@ export default function StaffContent() {
                           {formatDate(staff.createdAt)}
                         </td>
                         <td
-                          className="px-6 py-4"
+                          className="px-6 py-4 text-center"
                           onClick={(e) => e.stopPropagation()} // don't open detail when clicking actions
                         >
                           {canActOnStaff(staff) ? (
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => {

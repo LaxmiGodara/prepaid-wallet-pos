@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, Input, PageHeader, SectionCard, getStatusVariant } from "@/components/ui";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
 import { PAGINATION, PRODUCT_UNITS, RECORD_STATUS } from "@/lib/constants";
@@ -67,6 +67,20 @@ export default function ProductsContent() {
   const [editErr, setEditErr]         = useState("");
   const [isEditing, setIsEditing]     = useState(false);
   const [togglingId, setTogglingId]   = useState<string | null>(null);
+  const editFormRef = useRef<HTMLDivElement>(null);
+
+  // Clicking "Edit" on a row far down a long table opened the edit form
+  // above the table, off-screen — nothing visibly happened, so it read as
+  // "the edit button doesn't work" even though the form did open. Scrolling
+  // it into view (and focusing the name field) makes the click's effect
+  // immediately obvious.
+  useEffect(() => {
+    if (editingProduct && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const firstInput = editFormRef.current.querySelector("input:not([readonly])");
+      if (firstInput instanceof HTMLInputElement) firstInput.focus();
+    }
+  }, [editingProduct]);
 
   useEffect(() => {
     const t = setTimeout(() => { setDebouncedSearch(search); setCurrentPage(1); }, 400);
@@ -211,6 +225,7 @@ export default function ProductsContent() {
 
       {/* Edit Form */}
       {editingProduct && (
+        <div ref={editFormRef}>
         <SectionCard title={`Edit: ${editingProduct.productName}`}>
           <form onSubmit={handleEdit} className="grid grid-cols-2 gap-4" noValidate>
             <Input label="Product Name" name="productName" type="text" value={editData.productName} onChange={(e) => { setEditData((p) => ({ ...p, productName: e.target.value })); setEditErrors((p) => ({ ...p, productName: "" })); }} error={editErrors.productName} required autoComplete="off" />
@@ -237,6 +252,7 @@ export default function ProductsContent() {
             </div>
           </form>
         </SectionCard>
+        </div>
       )}
 
       {/* Table */}
@@ -251,7 +267,7 @@ export default function ProductsContent() {
         {!isLoading && !listError && list.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[680px]">
-              <thead><tr>{["Product", "Code", "Price", "Unit", "Status", "Actions"].map((h) => <th key={h} className="text-left px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap">{h}</th>)}</tr></thead>
+              <thead><tr>{["Product", "Code", "Price", "Unit", "Status", "Actions"].map((h) => <th key={h} className={`${h === "Actions" ? "text-center" : "text-left"} px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-[var(--color-paper)] border-b border-slate-100 whitespace-nowrap`}>{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-slate-50">
                 {list.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
@@ -261,7 +277,7 @@ export default function ProductsContent() {
                     <td className="px-6 py-4 text-sm text-slate-500">{p.unit}</td>
                     <td className="px-6 py-4"><Badge label={p.status} variant={getStatusVariant(p.status)} /></td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <button type="button" onClick={() => { closeAll(); setEditingProduct(p); setEditData({ productName: p.productName, productCode: p.productCode, sellingPrice: String(p.sellingPrice), unit: p.unit }); }} disabled={!!togglingId} className="text-xs font-medium text-[var(--color-accent-strong)] hover:text-[var(--color-accent-strong)] disabled:opacity-40 transition-colors">Edit</button>
                         <span className="text-slate-200">|</span>
                         <button type="button" onClick={() => void handleToggle(p)} disabled={togglingId === p.id} className={["text-xs font-medium transition-colors disabled:opacity-40", p.status === RECORD_STATUS.ACTIVE ? "text-red-500 hover:text-red-600" : "text-green-600 hover:text-green-700"].join(" ")}>

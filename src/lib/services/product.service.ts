@@ -14,6 +14,11 @@ export interface ProductRecord {
   status:       string;
   createdAt:    string;
   updatedAt:    string;
+  // Only populated by listProducts (which joins Stock) — other call sites
+  // (createProduct, updateProduct, updateProductStatus) leave this at 0
+  // since they don't need it and a fresh product always starts at 0 stock
+  // anyway.
+  currentStock: number;
 }
 
 interface ListProductsInput {
@@ -88,7 +93,10 @@ async function generateProductCode(productName: string): Promise<string> {
   return `PRD-${prefix}-${String(maxNumber + 1).padStart(2, "0")}`;
 }
 
-function toProductRecord(doc: InstanceType<typeof Product>): ProductRecord {
+function toProductRecord(
+  doc: InstanceType<typeof Product>,
+  currentStock = 0,
+): ProductRecord {
   return {
     id:           doc._id.toString(),
     productName:  doc.productName,
@@ -98,6 +106,7 @@ function toProductRecord(doc: InstanceType<typeof Product>): ProductRecord {
     status:       doc.status,
     createdAt:    doc.createdAt.toISOString(),
     updatedAt:    doc.updatedAt.toISOString(),
+    currentStock,
   };
 }
 
@@ -124,7 +133,18 @@ export async function listProducts(
     Product.countDocuments(filter),
   ]);
 
-  return { productList: products.map(toProductRecord), total };
+  const productIds = products.map((p) => p._id);
+  const stockRecords = await Stock.find({ productId: { $in: productIds } });
+  const stockMap = new Map(
+    stockRecords.map((s) => [s.productId.toString(), s.currentQty]),
+  );
+
+  return {
+    productList: products.map((p) =>
+      toProductRecord(p, stockMap.get(p._id.toString()) ?? 0),
+    ),
+    total,
+  };
 }
 
 // ATOMIC: Product + Stock(qty=0) created together
