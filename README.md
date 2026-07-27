@@ -14,19 +14,7 @@ Designed as an internal business application, the system streamlines prepaid wal
 
 ## Project Demonstration
 
-Watch the complete application workflow, including:
-
-- Secure Authentication
-- Member Registration
-- Card Assignment
-- Wallet Recharge
-- Product & Inventory Management
-- POS Billing
-- Transaction Tracking
-- Business Reporting
-
-https://www.loom.com/share/ef03aeeeacbf40f8bc793773d4f0a21b
-
+**App Demo URL:** https://www.loom.com/share/ef03aeeeacbf40f8bc793773d4f0a21b
 
 ## Table of Contents
 
