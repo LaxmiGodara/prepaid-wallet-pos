@@ -42,6 +42,7 @@
 
 import mongoose, { type QueryFilter } from "mongoose";
 
+import { startDbSession } from "@/lib/db";
 import {
   BILL_STATUS,
   CARD_STATUS,
@@ -384,7 +385,10 @@ export async function createBill(
   // All five document types are written inside one session.
   // If any step throws, abortTransaction() rolls back everything.
 
-  const session = await mongoose.startSession();
+  // A session must be started on the same connection the rest of this
+  // transaction's model calls will resolve to (demo or production) — see
+  // startDbSession() in src/lib/db.ts.
+  const session = await startDbSession();
   try {
     session.startTransaction();
 

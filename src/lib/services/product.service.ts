@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { startDbSession } from "@/lib/db";
+
 import { PAGINATION, PRODUCT_UNITS, RECORD_STATUS } from "@/lib/constants";
 import { Product, Stock } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
@@ -161,7 +163,9 @@ export async function createProduct(
   const unit         = input.unit!.trim();
   const actorOid     = new mongoose.Types.ObjectId(actorId);
 
-  const session = await mongoose.startSession();
+  // Started on whichever connection (demo or production) this request's
+  // model calls will resolve to — see startDbSession() in src/lib/db.ts.
+  const session = await startDbSession();
   try {
     session.startTransaction();
 

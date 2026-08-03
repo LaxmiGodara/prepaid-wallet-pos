@@ -9,7 +9,7 @@ export interface IStock extends Document {
   updatedAt: Date;
 }
 
-const stockSchema = new Schema<IStock>(
+export const stockSchema = new Schema<IStock>(
   {
     productId: {
       // One stock record per product. unique: true enforces this.

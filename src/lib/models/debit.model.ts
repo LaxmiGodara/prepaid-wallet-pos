@@ -14,7 +14,7 @@ export interface IDebit extends Document {
   updatedAt: Date;
 }
 
-const debitSchema = new Schema<IDebit>(
+export const debitSchema = new Schema<IDebit>(
   {
     memberId: {
       type: Schema.Types.ObjectId,

@@ -16,7 +16,7 @@ export interface IStaff extends Document {
   updatedAt: Date;
 }
 
-const staffSchema = new Schema<IStaff>(
+export const staffSchema = new Schema<IStaff>(
   {
     fullName: {
       type: String,

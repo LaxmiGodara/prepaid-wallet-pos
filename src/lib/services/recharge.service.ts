@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { startDbSession } from "@/lib/db";
+
 import { CARD_STATUS, PAGINATION, PAYMENT_MODES, RECORD_STATUS, TRANSACTION_TYPES } from "@/lib/constants";
 import { Card, Member, Recharge, Transaction, Wallet } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
@@ -128,7 +130,9 @@ export async function createRecharge(
   const actorOid  = new mongoose.Types.ObjectId(actorId);
   const memberOid = new mongoose.Types.ObjectId(input.memberId);
 
-  const session = await mongoose.startSession();
+  // Started on whichever connection (demo or production) this request's
+  // model calls will resolve to — see startDbSession() in src/lib/db.ts.
+  const session = await startDbSession();
   try {
     session.startTransaction();
 

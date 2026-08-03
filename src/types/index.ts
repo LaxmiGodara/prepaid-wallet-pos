@@ -70,6 +70,12 @@ export interface JwtPayload {
   role: string;
   username: string;
   tokenVersion: number;
+  // Present and true only for tokens issued by the /api/auth/demo-login
+  // route. Read by requireAuth() to flip AsyncLocalStorage demo context for
+  // the rest of the request (see src/lib/demo-context.ts) so every model
+  // call transparently targets the isolated demo database instead of
+  // production. Absent/false for every normal login.
+  isDemo?: boolean;
 }
 
 // ─── Session Data ────────────────────────────────────────────────────────────
@@ -86,6 +92,9 @@ export interface SessionData {
     username: string;
     role: string;
     status: string;
+    // True only when this session was created via the "Explore Demo"
+    // button. Drives the "Demo Mode" badge and dashboard banner.
+    isDemo?: boolean;
   };
 }
 

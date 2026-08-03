@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+import { startDbSession } from "@/lib/db";
+
 import { CARD_STATUS, PAGINATION, RECORD_STATUS } from "@/lib/constants";
 import { Member, Wallet, type ICard, type IMember, type IWallet } from "@/lib/models";
 import {
@@ -295,7 +297,9 @@ export async function createMember(
   const mobileNumber = input.mobileNumber?.trim() || null;
   const referenceDetails = input.referenceDetails?.trim() || null;
 
-  const session = await mongoose.startSession();
+  // Started on whichever connection (demo or production) this request's
+  // model calls will resolve to — see startDbSession() in src/lib/db.ts.
+  const session = await startDbSession();
 
   try {
     session.startTransaction();

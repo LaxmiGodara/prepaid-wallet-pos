@@ -4,7 +4,8 @@ import type { NextRequest } from "next/server";
 
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 import { RECORD_STATUS } from "@/lib/constants";
-import { connectDB } from "@/lib/db";
+import { connectDB, connectDemoDB } from "@/lib/db";
+import { enterDemoContext } from "@/lib/demo-context";
 import { Staff } from "@/lib/models";
 import { AppError, type JwtPayload } from "@/types";
 
@@ -15,6 +16,8 @@ export interface AuthenticatedStaff {
   role: string;
   status: string;
   tokenVersion: number;
+  // See JwtPayload.isDemo — true only for a session issued by /api/auth/demo-login.
+  isDemo: boolean;
 }
 
 
@@ -45,7 +48,19 @@ export async function requireAuth(
     throw new AppError("Session is not valid. Please log in again.", 401);
   }
 
-  await connectDB();
+  const isDemo = Boolean(decoded.isDemo);
+
+  // Must happen before any model access below (including the Staff.findOne
+  // a few lines down) — this is what makes the demo-aware model proxies in
+  // src/lib/models/index.ts route to the demo database for the rest of
+  // this request. See src/lib/demo-context.ts for why enterWith() is used.
+  enterDemoContext(isDemo);
+
+  if (isDemo) {
+    await connectDemoDB();
+  } else {
+    await connectDB();
+  }
 
   const staff = await Staff.findOne({
     _id: decoded.staffId,
@@ -77,6 +92,7 @@ export async function requireAuth(
     role: staff.role,
     status: staff.status,
     tokenVersion: staff.tokenVersion,
+    isDemo,
   };
 }
 

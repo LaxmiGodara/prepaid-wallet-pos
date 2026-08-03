@@ -13,7 +13,7 @@ export interface IWallet extends Document {
   updatedAt: Date;
 }
 
-const walletSchema = new Schema<IWallet>(
+export const walletSchema = new Schema<IWallet>(
   {
     memberId: {
       type: Schema.Types.ObjectId,

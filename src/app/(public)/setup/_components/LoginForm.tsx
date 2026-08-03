@@ -41,6 +41,7 @@ export default function LoginForm() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [requestError, setRequestError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDemoSubmitting, setIsDemoSubmitting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,9 +95,7 @@ export default function LoginForm() {
     };
   }, []);
 
-  function handleInputChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ): void {
+  function handleInputChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const { name, value } = event.target;
 
     setFormData((prev) => ({
@@ -117,7 +116,7 @@ export default function LoginForm() {
   }
 
   async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
+    event: React.FormEvent<HTMLFormElement>,
   ): Promise<void> {
     event.preventDefault();
 
@@ -160,9 +159,7 @@ export default function LoginForm() {
 
           setFormErrors(backendErrors);
         } else {
-          setRequestError(
-            result.message ?? "Login failed. Please try again."
-          );
+          setRequestError(result.message ?? "Login failed. Please try again.");
         }
 
         return;
@@ -173,10 +170,42 @@ export default function LoginForm() {
       router.replace("/dashboard");
     } catch {
       setRequestError(
-        "Unable to reach the server. Check your connection and try again."
+        "Unable to reach the server. Check your connection and try again.",
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleDemoLogin(): Promise<void> {
+    setRequestError("");
+    setIsDemoSubmitting(true);
+
+    try {
+      // No username/password sent — the server authenticates internally
+      // against a predefined demo account (see /api/auth/demo-login).
+      const response = await fetch("/api/auth/demo-login", {
+        method: "POST",
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        setRequestError(
+          result.message ?? "Couldn't start the demo. Please try again.",
+        );
+        return;
+      }
+
+      saveSession(result.data as SessionData);
+
+      router.replace("/dashboard");
+    } catch {
+      setRequestError(
+        "Unable to reach the server. Check your connection and try again.",
+      );
+    } finally {
+      setIsDemoSubmitting(false);
     }
   }
 
@@ -189,9 +218,7 @@ export default function LoginForm() {
           <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce [animation-delay:300ms]" />
         </span>
 
-        <span className="text-sm text-slate-400">
-          Loading...
-        </span>
+        <span className="text-sm text-slate-400">Loading...</span>
       </div>
     );
   }
@@ -239,13 +266,37 @@ export default function LoginForm() {
             variant="primary"
             size="lg"
             isLoading={isSubmitting}
+            disabled={isDemoSubmitting}
             fullWidth
           >
-            {isSubmitting
-              ? "Signing In..."
-              : "Sign In"}
+            {isSubmitting ? "Signing In..." : "Sign In"}
           </Button>
         </form>
+
+        <div className="flex items-center gap-3 my-4">
+          <div className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+            or
+          </span>
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <Button
+          type="button"
+          variant="demo"
+          size="lg"
+          isLoading={isDemoSubmitting}
+          disabled={isSubmitting}
+          fullWidth
+          onClick={() => void handleDemoLogin()}
+        >
+          {isDemoSubmitting ? "Loading Demo..." : "Explore Demo"}
+        </Button>
+
+        <p className="text-center text-xs text-slate-400 mt-3">
+          No signup required. Explore the application instantly using a demo
+          account.
+        </p>
       </SectionCard>
     </div>
   );

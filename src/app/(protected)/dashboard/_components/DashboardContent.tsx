@@ -37,6 +37,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { NAV_ITEMS } from "@/lib/navigation";
 import { STAFF_ROLES } from "@/lib/constants";
 import { getAuthorizationHeader } from "@/lib/auth-storage";
+import { Sparkles } from "lucide-react";
 
 const MODULE_ICONS: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
@@ -144,6 +145,21 @@ export default function DashboardContent() {
 
   return (
     <div className="p-6 flex flex-col gap-6 max-w-6xl">
+      {session.staff.isDemo && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-purple-50 px-5 py-4 animate-rise-in">
+          <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/70 text-amber-600 flex-shrink-0"></span>
+          <div>
+            <p className="text-sm font-semibold text-amber-900">
+              Welcome to the Demo Environment
+            </p>
+            <p className="text-sm text-amber-800/80 mt-0.5">
+              Feel free to explore every feature of the application. All changes
+              remain isolated to demo data and will never affect production.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-semibold text-[var(--color-text)] font-display">
           Welcome back, {firstName}
@@ -342,14 +358,19 @@ export default function DashboardContent() {
                         />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 11, fill: "var(--color-text-muted)" }}
+                          tick={{
+                            fontSize: 11,
+                            fill: "var(--color-text-muted)",
+                          }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <Tooltip
                           formatter={(value: ValueType | undefined) =>
                             formatCurrency(
-                              typeof value === "number" ? value : Number(value) || 0,
+                              typeof value === "number"
+                                ? value
+                                : Number(value) || 0,
                             )
                           }
                           contentStyle={{

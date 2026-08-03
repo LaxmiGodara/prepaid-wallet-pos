@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt, { type SignOptions } from "jsonwebtoken";
 
 import { RECORD_STATUS, STAFF_ROLES } from "@/lib/constants";
+import { assertNotReservedDemoAccount } from "@/lib/demo-account";
 import { Staff } from "@/lib/models";
 import {
   AppError,
@@ -168,7 +169,18 @@ export async function createSuperAdmin(input: SetupInput): Promise<SafeStaff> {
   };
 }
 
-export async function loginStaff(input: LoginInput): Promise<IssuedSession> {
+interface LoginOptions {
+  // Set only by /api/auth/demo-login. Everything else about loginStaff —
+  // credential lookup, bcrypt verification, active-status check — runs
+  // completely unchanged; this only affects what gets stamped into the
+  // signed JWT payload afterwards.
+  isDemo?: boolean;
+}
+
+export async function loginStaff(
+  input: LoginInput,
+  options: LoginOptions = {},
+): Promise<IssuedSession> {
   const errors: FieldError[] = [];
 
   if (!input.username?.trim()) {
@@ -215,6 +227,7 @@ export async function loginStaff(input: LoginInput): Promise<IssuedSession> {
     role: staff.role,
     username: staff.username,
     tokenVersion: staff.tokenVersion,
+    ...(options.isDemo ? { isDemo: true } : {}),
   };
 
   const jwtSecret = process.env.JWT_SECRET!;
@@ -233,6 +246,7 @@ export async function loginStaff(input: LoginInput): Promise<IssuedSession> {
       username: staff.username,
       role: staff.role,
       status: staff.status,
+      ...(options.isDemo ? { isDemo: true } : {}),
     },
   };
 }
@@ -393,6 +407,8 @@ export async function changeOwnPassword(
   if (!staff) {
     throw new AppError("Staff account not found.", 404);
   }
+
+  assertNotReservedDemoAccount(staff.username, "change its own password");
 
   const isCurrentPasswordValid = await bcrypt.compare(
     input.currentPassword!,

@@ -17,7 +17,7 @@ deletedAt: Date | null;
   updatedAt: Date;
 }
 
-const cardSchema = new Schema<ICard>(
+export const cardSchema = new Schema<ICard>(
   {
     cardNumber: {
       type: String,

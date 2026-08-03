@@ -14,7 +14,7 @@ export interface IRecharge extends Document {
   updatedAt: Date;
 }
 
-const rechargeSchema = new Schema<IRecharge>(
+export const rechargeSchema = new Schema<IRecharge>(
   {
     memberId: {
       type: Schema.Types.ObjectId,

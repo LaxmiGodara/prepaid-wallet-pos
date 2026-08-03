@@ -12,11 +12,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     validateRuntimeConfig();
     await connectDB();
 
-    const { staffId } = await requireAuth(request);
+    const { staffId, isDemo } = await requireAuth(request);
     const profile = await getCurrentStaff(staffId);
 
     return NextResponse.json(
-      buildSuccessResponse("Staff profile fetched successfully.", profile),
+      buildSuccessResponse("Staff profile fetched successfully.", {
+        ...profile,
+        isDemo,
+      }),
       { status: 200 },
     );
   } catch (error) {

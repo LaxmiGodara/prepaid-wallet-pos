@@ -14,7 +14,7 @@ export interface IStockMovement extends Document {
   updatedAt: Date;
 }
 
-const stockMovementSchema = new Schema<IStockMovement>(
+export const stockMovementSchema = new Schema<IStockMovement>(
   {
     productId: {
       type: Schema.Types.ObjectId,

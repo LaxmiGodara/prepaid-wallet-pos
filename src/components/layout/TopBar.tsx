@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, UserCircle } from "lucide-react";
+import { LogOut, Sparkles, UserCircle } from "lucide-react";
 
 import { useSession } from "@/contexts/SessionContext";
 
 export default function TopBar() {
-  const { logout } = useSession();
+  const { session, logout } = useSession();
   const pathname = usePathname();
   const isAccountActive = pathname === "/account";
 
@@ -19,6 +19,15 @@ export default function TopBar() {
         background: "var(--color-surface)",
       }}
     >
+      {session.staff.isDemo && (
+        <span
+          title="You are exploring a demonstration version. All changes are limited to demo data."
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 border border-amber-200 cursor-default"
+        >
+          Demo Mode
+        </span>
+      )}
+
       <Link
         href="/account"
         className={[

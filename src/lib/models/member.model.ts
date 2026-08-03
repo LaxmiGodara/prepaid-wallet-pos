@@ -14,7 +14,7 @@ export interface IMember extends Document {
   updatedAt: Date;
 }
 
-const memberSchema = new Schema<IMember>(
+export const memberSchema = new Schema<IMember>(
   {
     fullName: {
       type: String,

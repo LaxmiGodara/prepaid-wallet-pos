@@ -65,7 +65,7 @@ export interface IBill extends Document {
   updatedAt: Date;
 }
 
-const billSchema = new Schema<IBill>(
+export const billSchema = new Schema<IBill>(
   {
     billNumber: {
       type: String,
@@ -150,8 +150,16 @@ const billSchema = new Schema<IBill>(
   },
 );
 
-billSchema.pre("save", async function () {
-  if (!this.isNew) return;
+// Runs on "validate", not "save": Mongoose's document pipeline validates
+// before running save middleware, so a hook that only fires on "save" runs
+// too late to satisfy billNumber's `required: true` below — every direct
+// Bill.create()/save() without an explicit billNumber would fail
+// validation before this had a chance to set one. Billing itself has
+// always generated billNumber explicitly beforehand (see
+// generateBillNumber() in billing.service.ts), which is why this only
+// surfaces for other callers, like Demo Mode seeding.
+billSchema.pre("validate", async function () {
+  if (!this.isNew || this.billNumber) return;
 
   const date = new Date();
   const datePart =
@@ -162,7 +170,13 @@ billSchema.pre("save", async function () {
   for (let attempt = 0; attempt < 5; attempt++) {
     const random = Math.floor(Math.random() * 9000 + 1000).toString();
     const candidate = `BILL-${datePart}-${random}`;
-    const existing = await Bill.findOne({ billNumber: candidate });
+    // Deliberately `this.constructor`, not the module-scoped `Bill` export:
+    // this document may have been created against the Demo Mode connection
+    // (see src/lib/models/index.ts), and `this.constructor` always resolves
+    // to whichever compiled model actually produced this document, keeping
+    // the uniqueness check on the same database the document will save to.
+    const BillModel = this.constructor as mongoose.Model<IBill>;
+    const existing = await BillModel.findOne({ billNumber: candidate });
     if (!existing) {
       this.billNumber = candidate;
       return;

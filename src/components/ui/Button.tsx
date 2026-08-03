@@ -6,7 +6,7 @@ import React from "react";
 
 interface ButtonProps {
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "danger" | "ghost";
+  variant?: "primary" | "secondary" | "danger" | "ghost" | "demo";
   size?: "sm" | "md" | "lg";
   type?: "button" | "submit" | "reset";
   disabled?: boolean;
@@ -27,6 +27,8 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
   danger:
     "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm shadow-red-200",
   ghost: "bg-transparent text-slate-600 hover:bg-slate-100 active:bg-slate-200",
+  demo:
+    "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-500 hover:to-purple-500 active:from-blue-700 active:to-purple-700 shadow-sm shadow-purple-200",
 };
 
 // Each size maps to padding and text size

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import mongoose, { type QueryFilter, type UpdateQuery } from "mongoose";
 
 import { PAGINATION, RECORD_STATUS, STAFF_ROLES } from "@/lib/constants";
+import { assertNotReservedDemoAccount } from "@/lib/demo-account";
 import { Staff, type IStaff } from "@/lib/models";
 import { AppError, type FieldError } from "@/types";
 
@@ -388,6 +389,8 @@ export async function updateStaffStatus(
   const targetStaff = await Staff.findOne({ _id: targetId, isDeleted: false });
   if (!targetStaff) throw new AppError("Staff account not found.", 404);
 
+  assertNotReservedDemoAccount(targetStaff.username, "be deactivated");
+
   checkStatusToggleHierarchy(actorRole, targetStaff.role);
 
   const newStatus =
@@ -479,6 +482,8 @@ export async function resetStaffPassword(
   if (!targetStaff) {
     throw new AppError("Staff account not found.", 404);
   }
+
+  assertNotReservedDemoAccount(targetStaff.username, "have its password reset");
 
   checkUpdateHierarchy(actorRole, targetStaff.role);
 
