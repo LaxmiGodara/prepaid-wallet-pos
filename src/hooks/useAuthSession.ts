@@ -45,6 +45,10 @@ export function useAuthSession(): UseAuthSessionResult {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
+          // The cookie is present (the proxy let us in) but the server
+          // rejected it. Ask the server to clear it before going to /login,
+          // or the proxy would send us straight back here in a loop.
+          await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
           clearSession();
           if (isMounted) {
             setSession(null);

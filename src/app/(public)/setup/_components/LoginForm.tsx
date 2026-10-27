@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button, Input, SectionCard } from "@/components/ui";
-import { getSession, saveSession } from "@/lib/auth-storage";
+import { clearSession, saveSession } from "@/lib/auth-storage";
 import type { SessionData } from "@/types";
 
 interface FormData {
@@ -69,12 +69,13 @@ export default function LoginForm() {
           return;
         }
 
-        const existingSession = getSession();
-
-        if (existingSession?.staff) {
-          router.replace("/dashboard");
-          return;
-        }
+        // The proxy (src/proxy.ts) already redirects anyone with a valid
+        // auth cookie away from /login. So if we are rendering here, the
+        // cookie is missing or expired, and any profile cached in
+        // localStorage is stale. Redirecting to /dashboard based on it would
+        // bounce straight back to /login and leave this page stuck on
+        // "Loading..." forever. Clear it and show the login form instead.
+        clearSession();
       } catch {
         // Network error, timeout, or the server is unreachable — fall
         // through to showing the login form rather than staying stuck.

@@ -26,6 +26,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return response;
   } catch (error) {
-    return handleApiError(error);
+    // Even if the token is expired or invalid (so requireAuth throws), still
+    // clear the cookie. Otherwise a dead cookie stays in the browser, the
+    // proxy keeps treating the user as logged in, and they loop between
+    // /login and /dashboard.
+    const response = handleApiError(error);
+    clearAuthCookie(response);
+    return response;
   }
 }
